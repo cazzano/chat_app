@@ -1,0 +1,13 @@
+flask 
+pyjwt
+sendgrid
+# python-env
+python-dotenv
+requests
+flask 
+#psutil 
+requests
+cors
+python-magic
+flask_cors
+gunicorn
