@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Check, Copy, Eye, EyeOff, Lock, Shield } from 'lucide-react';
+import { Check, Copy, Eye, EyeOff } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import QRCode from 'qrcode';
+import * as OTPAuth from 'otpauth';
+import { useToast } from "@/hooks/use-toast";
+
 
 export function LoginForm() {
   const [isResetOpen, setIsResetOpen] = React.useState(false);
@@ -53,11 +56,18 @@ export function LoginForm() {
 
 export function SignUpForm() {
     const [isTotpOpen, setIsTotpOpen] = React.useState(false);
+    const [formData, setFormData] = React.useState({ username: '', password: '' });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // In a real app, you'd handle form submission here
-        // For now, we just open the TOTP popup
+        const target = e.target as typeof e.target & {
+            newNetrunnerId: { value: string };
+            newAccessCode: { value: string };
+        };
+        setFormData({
+            username: target.newNetrunnerId.value,
+            password: target.newAccessCode.value,
+        });
         setIsTotpOpen(true);
     }
   
@@ -69,19 +79,19 @@ export function SignUpForm() {
               <Label htmlFor="newNetrunnerId" className="terminal-label">
                 &gt; NEW_NETRUNNER_ID:
               </Label>
-              <Input type="text" id="newNetrunnerId" placeholder="[________________]" className="terminal-input" />
+              <Input type="text" id="newNetrunnerId" name="newNetrunnerId" placeholder="[________________]" className="terminal-input" required/>
             </div>
             <div className="grid w-full items-center gap-2.5">
               <Label htmlFor="newAccessCode" className="terminal-label">
                 &gt; ACCESS_CODE:
               </Label>
-              <Input type="password" id="newAccessCode" placeholder="[****************]" className="terminal-input" />
+              <Input type="password" id="newAccessCode" name="newAccessCode" placeholder="[****************]" className="terminal-input" required />
             </div>
             <div className="grid w-full items-center gap-2.5">
               <Label htmlFor="confirmAccessCode" className="terminal-label">
                 &gt; CONFIRM_CODE:
               </Label>
-              <Input type="password" id="confirmAccessCode" placeholder="[****************]" className="terminal-input" />
+              <Input type="password" id="confirmAccessCode" placeholder="[****************]" className="terminal-input" required />
             </div>
             <div className="flex items-center space-x-2 terminal-checkbox">
                 <Checkbox id="accept-protocols" required />
@@ -97,7 +107,12 @@ export function SignUpForm() {
             </Button>
           </form>
         </div>
-        <TotpSetupPopup isOpen={isTotpOpen} onOpenChange={setIsTotpOpen} username="new_netrunner" />
+        <TotpSetupPopup 
+            isOpen={isTotpOpen} 
+            onOpenChange={setIsTotpOpen} 
+            username={formData.username}
+            password={formData.password}
+        />
       </>
     );
 }
@@ -137,9 +152,7 @@ function ResetAccessCodesFlow({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
     }, [step, isOpen]);
 
     const handleReconfigure = () => {
-        // This will trigger the reconfiguration flow by opening the TotpSetupPopup
         setIsReconfiguring(true);
-        // We can close the current dialog
         onOpenChange(false);
     }
     
@@ -223,22 +236,34 @@ function ResetAccessCodesFlow({ isOpen, onOpenChange }: { isOpen: boolean, onOpe
                     {renderStep()}
                 </DialogContent>
             </Dialog>
-            {/* This will render the TOTP setup flow when reconfiguring */}
-            <TotpSetupPopup isOpen={isReconfiguring} onOpenChange={setIsReconfiguring} username="your_netrunner_id" />
+            <TotpSetupPopup isOpen={isReconfiguring} onOpenChange={setIsReconfiguring} username="your_netrunner_id" password="dummy_password" />
         </>
     );
 }
 
-function TotpSetupPopup({ isOpen, onOpenChange, username }: { isOpen: boolean, onOpenChange: (open: boolean) => void, username: string }) {
+function TotpSetupPopup({ isOpen, onOpenChange, username, password }: { isOpen: boolean, onOpenChange: (open: boolean) => void, username: string, password?: string }) {
+    const { toast } = useToast();
     const [step, setStep] = React.useState(1);
     const [progress, setProgress] = React.useState(0);
-    const [secret] = React.useState(generateRandomSecret());
+    const [secret, setSecret] = React.useState('');
     const [qrCodeDataUrl, setQrCodeDataUrl] = React.useState('');
     const [isKeyVisible, setIsKeyVisible] = React.useState(false);
-    const [backupCodes] = React.useState(generateBackupCodes());
+    const [backupCodes, setBackupCodes] = React.useState<string[]>([]);
+    const [verificationStatus, setVerificationStatus] = React.useState<'pending' | 'valid' | 'invalid'>('pending');
+    const [totpInput, setTotpInput] = React.useState('');
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     React.useEffect(() => {
-        if (step === 1 && isOpen) {
+        if (isOpen) {
+            setStep(1);
+            setProgress(0);
+            const newSecret = generateRandomSecret();
+            setSecret(newSecret);
+            setBackupCodes(generateBackupCodes());
+            setTotpInput('');
+            setVerificationStatus('pending');
+            setIsSubmitting(false);
+
             const timer = setTimeout(() => setProgress(100), 500);
             const stepTimer = setTimeout(() => setStep(2), 1500);
             return () => {
@@ -246,12 +271,21 @@ function TotpSetupPopup({ isOpen, onOpenChange, username }: { isOpen: boolean, o
                 clearTimeout(stepTimer);
             };
         }
-    }, [step, isOpen]);
+    }, [isOpen]);
 
     React.useEffect(() => {
-        if (isOpen && secret) {
-            const serviceName = "NightCityNetwork";
-            const qrData = `otpauth://totp/${serviceName}:${username}?secret=${secret}&issuer=${serviceName}&algorithm=SHA1&digits=6&period=30`;
+        if (isOpen && secret && username) {
+            const serviceName = "NeuroLink";
+            const totp = new OTPAuth.TOTP({
+                issuer: serviceName,
+                label: username,
+                algorithm: 'SHA1',
+                digits: 6,
+                period: 30,
+                secret: OTPAuth.Secret.fromBase32(secret),
+            });
+            const qrData = totp.toString();
+
             QRCode.toDataURL(qrData, {
                 errorCorrectionLevel: 'H',
                 margin: 2,
@@ -268,6 +302,83 @@ function TotpSetupPopup({ isOpen, onOpenChange, username }: { isOpen: boolean, o
             });
         }
     }, [isOpen, secret, username]);
+
+    const handleVerification = async () => {
+        if (!secret || totpInput.length !== 6 || !password) {
+            return;
+        }
+        
+        setIsSubmitting(true);
+
+        try {
+            const totp = new OTPAuth.TOTP({
+                issuer: "NeuroLink",
+                label: username,
+                algorithm: 'SHA1',
+                digits: 6,
+                period: 30,
+                secret: OTPAuth.Secret.fromBase32(secret), 
+            });
+
+            let delta = totp.validate({ token: totpInput, window: 1 });
+
+            if (delta === null) {
+                setVerificationStatus('invalid');
+                toast({
+                    title: "[ERROR] INVALID_VERIFICATION_CODE",
+                    description: "Neural pattern mismatch. Recalibrate and try again.",
+                    variant: "destructive",
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            setVerificationStatus('valid');
+            
+            // API Call
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username,
+                    password,
+                    'secret-key': secret,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const errorTitle = errorData.error ? `[${errorData.error.toUpperCase()}]` : "[REGISTRATION_FAULT]";
+                toast({
+                    title: errorTitle,
+                    description: errorData.message || "An unknown error occurred during registration.",
+                    variant: "destructive",
+                });
+                setIsSubmitting(false);
+                return;
+            }
+
+            const responseData = await response.json();
+            toast({
+                title: "[SUCCESS] REGISTRATION_COMPLETE",
+                description: `Netrunner profile ${responseData.username} created. Welcome to the grid.`,
+            });
+            
+            setTimeout(() => setStep(5), 1000);
+
+        } catch (e: any) {
+            console.error("Verification or API error:", e);
+            toast({
+                title: "[SYSTEM_FAULT] REGISTRATION_ERROR",
+                description: e.message || "Anomaly detected in the quantum entanglement. Contact support.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
 
     const renderStep = () => {
@@ -334,6 +445,11 @@ function TotpSetupPopup({ isOpen, onOpenChange, username }: { isOpen: boolean, o
                     </div>
                 );
              case 4:
+                const getBorderColor = () => {
+                    if (verificationStatus === 'valid') return 'border-primary';
+                    if (verificationStatus === 'invalid') return 'border-destructive';
+                    return 'border-primary/50';
+                }
                 return (
                     <div>
                         <DialogHeader>
@@ -341,9 +457,20 @@ function TotpSetupPopup({ isOpen, onOpenChange, username }: { isOpen: boolean, o
                         </DialogHeader>
                         <div className="p-4 space-y-4">
                             <Label htmlFor="totp-code" className="terminal-label">&gt; ENTER_6_DIGIT_VERIFICATION_CODE:</Label>
-                            <Input id="totp-code" placeholder="000000" className="terminal-input text-2xl tracking-[0.5em] text-center" maxLength={6} />
-                            {/* In a real app, you'd add validation logic here. */}
-                            <Button onClick={() => setStep(5)} className="w-full terminal-button">VERIFY_LINK</Button>
+                            <Input 
+                                id="totp-code" 
+                                placeholder="000000" 
+                                className={`terminal-input text-2xl tracking-[0.5em] text-center ${getBorderColor()}`}
+                                maxLength={6}
+                                value={totpInput}
+                                onChange={(e) => {
+                                    setVerificationStatus('pending');
+                                    setTotpInput(e.target.value);
+                                }}
+                            />
+                            <Button onClick={handleVerification} className="w-full terminal-button" disabled={totpInput.length !== 6 || isSubmitting}>
+                                {isSubmitting ? 'VERIFYING...' : 'VERIFY_LINK'}
+                            </Button>
                         </div>
                     </div>
                 );

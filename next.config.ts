@@ -1,10 +1,7 @@
-//# This is the next config file needed
-
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  trailingSlash: true,
+  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -12,7 +9,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: true, // Required for static export
     remotePatterns: [
       {
         protocol: 'https',
