@@ -1,5 +1,4 @@
-# Firebase Studio
+# My Chat App's Frontend in NextJs and below are the build commands:
 
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+pnpm dev
+pnpm build
