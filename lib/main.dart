@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/chat_list_screen.dart';
+import 'screens/auth_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -61,7 +61,7 @@ class MyApp extends StatelessWidget {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
-      home: const ChatListScreen(),
+      home: const AuthScreen(),
     );
   }
 }

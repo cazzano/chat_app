@@ -3,6 +3,7 @@ import '../models/conversation.dart';
 import '../data/mock_data.dart';
 import '../widgets/conversation_tile.dart';
 import 'chat_screen.dart';
+import 'auth_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({Key? key}) : super(key: key);
@@ -75,6 +76,36 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
+  void _handleLogout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Navigate to login screen and clear all previous routes
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const AuthScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -105,22 +136,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
               icon: const Icon(Icons.search),
               onPressed: _startSearch,
             ),
-          if (!_isSearching)
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                // Handle menu item selection
-              },
-              itemBuilder: (BuildContext context) => [
-                const PopupMenuItem(
-                  value: 'new_group',
-                  child: Text('New group'),
-                ),
-                const PopupMenuItem(
-                  value: 'settings',
-                  child: Text('Settings'),
-                ),
-              ],
-            ),
+            if (!_isSearching) ...[
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: _handleLogout,
+                tooltip: 'Logout',
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  // Handle menu item selection
+                },
+                itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem(
+                    value: 'new_group',
+                    child: Text('New group'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'settings',
+                    child: Text('Settings'),
+                  ),
+                ],
+              ),
+            ],
         ],
       ),
       body: _conversations.isEmpty
