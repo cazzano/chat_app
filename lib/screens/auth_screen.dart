@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'chat_list_screen.dart';
+import 'two_factor_setup_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({Key? key}) : super(key: key);
@@ -60,7 +61,37 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     await Future.delayed(const Duration(milliseconds: 500)); // Quick UI feedback
 
     setState(() => _isLoading = false);
-    _navigateToChat(); // Always navigate to chat after validation passes
+    if (!_isLoginMode) {
+      _handleSignup();
+    } else {
+      _navigateToChat(); // Always navigate to chat after validation passes
+    }
+  }
+
+  void _handleSignup() {
+    if (!_formKey.currentState!.validate()) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Simulate network delay
+    Future.delayed(const Duration(seconds: 1), () {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        // Navigate to 2FA setup on successful signup
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TwoFactorSetupScreen(
+              username: _usernameController.text,
+            ),
+          ),
+        );
+      }
+    });
   }
 
   void _navigateToChat() {
