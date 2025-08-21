@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:math';
 import 'backup_codes_screen.dart';
+import 'totp_verification_screen.dart';
 
 class TwoFactorSetupScreen extends StatefulWidget {
   final String username;
@@ -54,24 +56,36 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
     _secretKey = List.generate(32, (index) => chars[random.nextInt(chars.length)]).join();
     
     // Create QR data in TOTP format for Google Authenticator
-    _qrData = 'otpauth://totp/ChatApp:${widget.username}?secret=$_secretKey&issuer=ChatApp';
+    _qrData = 'otpauth://totp/ChatApp:${widget.username}?secret=$_secretKey&issuer=ChatApp&digits=6&period=30';
   }
 
   void _copySecretKey() {
     Clipboard.setData(ClipboardData(text: _secretKey));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Secret key copied to clipboard'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white, size: 16),
+            SizedBox(width: 8),
+            Text('Secret key copied to clipboard'),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 
-  void _proceedToBackupCodes() {
+  void _proceedToVerification() {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BackupCodesScreen(username: widget.username),
+        builder: (context) => TOTPVerificationScreen(
+          username: widget.username,
+          secretKey: _secretKey,
+        ),
       ),
     );
   }
@@ -88,7 +102,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
     
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Setup Two-Factor Auth'),
+        title: const Text('Setup Authenticator'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -145,7 +159,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                   
                   // Subtitle
                   Text(
-                    'Scan this QR code with Google Authenticator',
+                    'Scan this QR code with Google Authenticator\nto enable two-factor authentication',
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: Colors.grey[600],
                     ),
@@ -168,64 +182,61 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                       ),
                       child: Column(
                         children: [
-                          // QR Code Placeholder
+                          // QR Code using qr_flutter package
                           Container(
-                            width: 200,
-                            height: 200,
+                            width: 220,
+                            height: 220,
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey[300]!),
+                              border: Border.all(color: Colors.grey[200]!),
                               borderRadius: BorderRadius.circular(12),
+                              color: Colors.white,
                             ),
-                            child: Stack(
-                              children: [
-                                // QR Code Pattern Simulation
-                                Center(
-                                  child: Container(
-                                    width: 180,
-                                    height: 180,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: CustomPaint(
-                                      painter: QRPatternPainter(),
-                                    ),
-                                  ),
-                                ),
-                                // QR Icon Overlay
-                                Center(
-                                  child: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(
-                                      Icons.qr_code,
-                                      color: theme.primaryColor,
-                                      size: 24,
+                            padding: const EdgeInsets.all(16),
+                            child: QrImageView(
+                              data: _qrData,
+                              version: QrVersions.auto,
+                              size: 188.0,
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                              errorStateBuilder: (cxt, err) {
+                                return Container(
+                                  child: Center(
+                                    child: Text(
+                                      "Something went wrong...",
+                                      textAlign: TextAlign.center,
                                     ),
                                   ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
                           ),
                           
                           const SizedBox(height: 16),
                           
-                          // App Name
-                          Text(
-                            'ChatApp',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                          // App Info
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: theme.primaryColor.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                          ),
-                          
-                          Text(
-                            widget.username,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
+                            child: Column(
+                              children: [
+                                Text(
+                                  'ChatApp',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.primaryColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.username,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -254,7 +265,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Secret Key',
+                                'Manual Entry Key',
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -262,19 +273,27 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                             ],
                           ),
                           const SizedBox(height: 8),
+                          Text(
+                            'Use this key if you can\'t scan the QR code',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.grey[100],
+                              color: Colors.grey[50],
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey[300]!),
+                              border: Border.all(color: Colors.grey[200]!),
                             ),
                             child: SelectableText(
-                              _secretKey,
+                              _secretKey.replaceAllMapped(RegExp(r'.{4}'), (match) => '${match.group(0)} ').trim(),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontFamily: 'monospace',
                                 letterSpacing: 1,
+                                fontSize: 13,
                               ),
                             ),
                           ),
@@ -319,7 +338,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'How to setup:',
+                                'Setup Instructions:',
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.blue[700],
@@ -328,10 +347,10 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                             ],
                           ),
                           const SizedBox(height: 12),
-                          _buildInstructionStep('1', 'Download Google Authenticator'),
-                          _buildInstructionStep('2', 'Tap "+" to add account'),
-                          _buildInstructionStep('3', 'Scan QR code or enter secret key'),
-                          _buildInstructionStep('4', 'Verify 6-digit code'),
+                          _buildInstructionStep('1', 'Install Google Authenticator from app store'),
+                          _buildInstructionStep('2', 'Tap "+" or "Add account"'),
+                          _buildInstructionStep('3', 'Select "Scan QR code" or enter key manually'),
+                          _buildInstructionStep('4', 'Tap "Next" to verify your setup'),
                         ],
                       ),
                     ),
@@ -343,8 +362,16 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                   SizedBox(
                     width: double.infinity,
                     height: 50,
-                    child: ElevatedButton(
-                      onPressed: _proceedToBackupCodes,
+                    child: ElevatedButton.icon(
+                      onPressed: _proceedToVerification,
+                      icon: const Icon(Icons.verified_user, size: 20),
+                      label: const Text(
+                        'Next: Verify Setup',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.primaryColor,
                         foregroundColor: Colors.white,
@@ -352,26 +379,6 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         elevation: 2,
-                      ),
-                      child: const Text(
-                        'Next: Generate Backup Codes',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Skip Button
-                  TextButton(
-                    onPressed: _proceedToBackupCodes,
-                    child: Text(
-                      'Skip for now',
-                      style: TextStyle(
-                        color: Colors.grey[600],
                       ),
                     ),
                   ),
@@ -388,6 +395,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 24,
@@ -418,45 +426,4 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
       ),
     );
   }
-}
-
-// Custom Painter for QR Code Pattern
-class QRPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    final random = Random(42); // Fixed seed for consistent pattern
-    final blockSize = size.width / 20;
-
-    // Create random QR-like pattern
-    for (int i = 0; i < 20; i++) {
-      for (int j = 0; j < 20; j++) {
-        if (random.nextBool()) {
-          canvas.drawRect(
-            Rect.fromLTWH(i * blockSize, j * blockSize, blockSize, blockSize),
-            paint,
-          );
-        }
-      }
-    }
-
-    // Draw corner squares (typical QR code markers)
-    final cornerPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = blockSize;
-
-    // Top-left corner
-    canvas.drawRect(Rect.fromLTWH(0, 0, blockSize * 3, blockSize * 3), cornerPaint);
-    // Top-right corner
-    canvas.drawRect(Rect.fromLTWH(size.width - blockSize * 3, 0, blockSize * 3, blockSize * 3), cornerPaint);
-    // Bottom-left corner
-    canvas.drawRect(Rect.fromLTWH(0, size.height - blockSize * 3, blockSize * 3, blockSize * 3), cornerPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

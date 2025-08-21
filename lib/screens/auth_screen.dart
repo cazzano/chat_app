@@ -57,41 +57,84 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
     setState(() => _isLoading = true);
 
-    // Simple frontend validation - just check if fields are filled
-    await Future.delayed(const Duration(milliseconds: 500)); // Quick UI feedback
+    // Simulate network delay for UI feedback
+    await Future.delayed(const Duration(milliseconds: 800));
 
     setState(() => _isLoading = false);
+    
     if (!_isLoginMode) {
       _handleSignup();
     } else {
-      _navigateToChat(); // Always navigate to chat after validation passes
+      _navigateToChat();
     }
   }
 
   void _handleSignup() {
     if (!_formKey.currentState!.validate()) return;
     
-    setState(() {
-      _isLoading = true;
-    });
+    // Show setup 2FA dialog
+    _showSetup2FADialog();
+  }
 
-    // Simulate network delay
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        // Navigate to 2FA setup on successful signup
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => TwoFactorSetupScreen(
-              username: _usernameController.text,
-            ),
+  void _showSetup2FADialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.security,
+                color: Theme.of(context).primaryColor,
+              ),
+              const SizedBox(width: 12),
+              const Text('Secure Your Account'),
+            ],
+          ),
+          content: const Text(
+            'To keep your account safe, we recommend setting up two-factor authentication. This adds an extra layer of security.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToChat(); // Skip 2FA setup
+              },
+              child: const Text('Skip for now'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateTo2FASetup(); // Set up 2FA
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Set up 2FA'),
+            ),
+          ],
         );
-      }
-    });
+      },
+    );
+  }
+
+  void _navigateTo2FASetup() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TwoFactorSetupScreen(
+          username: _usernameController.text,
+        ),
+      ),
+    );
   }
 
   void _navigateToChat() {
@@ -164,7 +207,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           Text(
                             _isLoginMode 
                                 ? 'Sign in to continue chatting'
-                                : 'Join our chat community',
+                                : 'Join our secure chat community',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: Colors.grey[600],
                             ),
