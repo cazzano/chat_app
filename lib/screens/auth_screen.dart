@@ -126,16 +126,35 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _navigateTo2FASetup() {
+// New Version
+
+
+void _navigateTo2FASetup() {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => TwoFactorSetupScreen(
           username: _usernameController.text,
+          password: _passwordController.text, // Add password parameter
         ),
       ),
     );
   }
+
+
+
+// Old Version
+
+//  void _navigateTo2FASetup() {
+//    Navigator.pushReplacement(
+//      context,
+//      MaterialPageRoute(
+//        builder: (context) => TwoFactorSetupScreen(
+//          username: _usernameController.text,
+//        ),
+//      ),
+//    );
+//  }
 
   void _navigateToChat() {
     Navigator.pushReplacement(

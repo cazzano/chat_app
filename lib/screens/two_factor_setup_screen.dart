@@ -7,10 +7,12 @@ import 'totp_verification_screen.dart';
 
 class TwoFactorSetupScreen extends StatefulWidget {
   final String username;
+  final String password; // Added password parameter
   
   const TwoFactorSetupScreen({
     Key? key,
     required this.username,
+    required this.password, // Added password parameter
   }) : super(key: key);
 
   @override
@@ -84,6 +86,7 @@ class _TwoFactorSetupScreenState extends State<TwoFactorSetupScreen>
       MaterialPageRoute(
         builder: (context) => TOTPVerificationScreen(
           username: widget.username,
+          password: widget.password, // Pass password parameter
           secretKey: _secretKey,
         ),
       ),

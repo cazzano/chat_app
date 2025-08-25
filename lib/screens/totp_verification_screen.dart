@@ -3,15 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'backup_codes_screen.dart';
+import 'signup_backend.dart'; // Changed import
 
 class TOTPVerificationScreen extends StatefulWidget {
   final String username;
+  final String password; // Added password parameter
   final String secretKey;
 
   const TOTPVerificationScreen({
     Key? key,
     required this.username,
+    required this.password, // Added password parameter
     required this.secretKey,
   }) : super(key: key);
 
@@ -267,7 +269,7 @@ class _TOTPVerificationScreenState extends State<TOTPVerificationScreen>
               ),
               const SizedBox(height: 8),
               const Text(
-                'Two-factor authentication has been set up successfully for your account.',
+                'Two-factor authentication has been verified successfully. Continue to complete your registration.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.grey,
@@ -279,11 +281,14 @@ class _TOTPVerificationScreenState extends State<TOTPVerificationScreen>
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
+                    // Navigate to signup backend screen instead of backup codes
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => BackupCodesScreen(
+                        builder: (context) => SignupBackendScreen(
                           username: widget.username,
+                          password: widget.password,
+                          secretKey: widget.secretKey,
                         ),
                       ),
                     );
@@ -297,7 +302,7 @@ class _TOTPVerificationScreenState extends State<TOTPVerificationScreen>
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: const Text(
-                    'Continue to Backup Codes',
+                    'Continue to Registration',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
