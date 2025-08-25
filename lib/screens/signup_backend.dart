@@ -70,26 +70,32 @@ class _SignupBackendScreenState extends State<SignupBackendScreen>
     });
 
     try {
-      // Prepare the signup data
-      final signupData = {
-        'username': _usernameController.text.trim(),
-        'password': _passwordController.text,
-        'secret-key': widget.secretKey,
-      };
+      // Debug log - show what we're sending in headers
+      print('Sending data in headers:');
+      print('  username: ${_usernameController.text.trim()}');
+      print('  password: ${_passwordController.text}');
+      print('  secret-key: ${widget.secretKey}');
 
-      // Make API call to backend
+      // Make API call to backend - server expects data in headers, not body
       final response = await http.post(
         Uri.parse('http://localhost:2000/register'),
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'username': _usernameController.text.trim(),
+          'password': _passwordController.text,
+          'secret-key': widget.secretKey,
         },
-        body: json.encode(signupData),
+        // No body needed since server expects headers
       ).timeout(
-        const Duration(seconds: 10),
+        const Duration(seconds: 15),
         onTimeout: () {
           throw Exception('Request timeout');
         },
       );
+
+      print('Response status: ${response.statusCode}'); // Debug log
+      print('Response body: ${response.body}'); // Debug log
 
       if (response.statusCode == 201) {
         // Success - parse response
@@ -101,25 +107,49 @@ class _SignupBackendScreenState extends State<SignupBackendScreen>
           // Show success dialog and navigate to backup codes
           _showSuccessDialog(responseData);
         }
-      } else {
-        // Handle error responses
+      } else if (response.statusCode == 409) {
+        // Username already exists
         if (mounted) {
-          final errorData = json.decode(response.body);
           setState(() {
             _isLoading = false;
-            _errorMessage = errorData['error'] ?? 'Registration failed. Please try again.';
+            _errorMessage = 'Username already exists. Please choose a different username.';
           });
         }
+      } else {
+        // Handle other error responses
+        if (mounted) {
+          try {
+            final errorData = json.decode(response.body);
+            setState(() {
+              _isLoading = false;
+              _errorMessage = errorData['error'] ?? 'Registration failed. Please try again.';
+            });
+          } catch (e) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = 'Registration failed. Server returned status ${response.statusCode}.';
+            });
+          }
+        }
       }
+    } on http.ClientException catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Connection error. Please check if the server is running on localhost:2000.';
+        });
+      }
+      print('Client Exception: $e');
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = e.toString().contains('timeout')
               ? 'Request timeout. Please check your connection and try again.'
-              : 'Network error. Please check your connection and try again.';
+              : 'Network error: ${e.toString()}';
         });
       }
+      print('Exception: $e');
     }
   }
 
@@ -443,6 +473,46 @@ class _SignupBackendScreenState extends State<SignupBackendScreen>
                                       color: Colors.red,
                                       fontWeight: FontWeight.w500,
                                     ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        
+                        // Debug Info (remove in production)
+                        if (_isLoading)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            margin: const EdgeInsets.only(bottom: 20),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Sending request to server...',
+                                  style: TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Username: ${_usernameController.text}',
+                                  style: TextStyle(
+                                    color: Colors.blue[700],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  'Secret Key: ${widget.secretKey.substring(0, 10)}...',
+                                  style: TextStyle(
+                                    color: Colors.blue[700],
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],
