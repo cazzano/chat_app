@@ -11,3 +11,14 @@ cors
 python-magic
 flask_cors
 gunicorn
+werkzeug
+markupsafe
+click
+blinker
+blueprint
+jinja2
+itsdangerous
+urllib3
+idna
+certifi
+pyotp
