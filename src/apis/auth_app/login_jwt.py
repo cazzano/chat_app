@@ -48,8 +48,8 @@ def verify_user_credentials_with_totp(username, password, totp_code):
             secret_key = user['secret_key']
             totp = pyotp.TOTP(secret_key)
             
-            # Verify the TOTP code (with window tolerance for clock drift)
-            is_totp_valid = totp.verify(totp_code, valid_window=1)
+            # Verify the TOTP code (30 second window - no tolerance for strict timing)
+            is_totp_valid = totp.verify(totp_code, valid_window=0)
             
             if not is_totp_valid:
                 return None, False, "Invalid or expired TOTP code"
