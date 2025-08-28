@@ -4,6 +4,7 @@ import '../data/mock_data.dart';
 import '../widgets/conversation_tile.dart';
 import '../widgets/user_search_dialog.dart';
 import '../widgets/friend_requests_badge.dart';
+import '../services/login_api.dart'; // Add this import
 import 'chat_screen.dart';
 import 'auth_screen.dart';
 import 'get_requests.dart';
@@ -19,6 +20,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   late List<Conversation> _conversations;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
+  bool _isLoggingOut = false; // Add loading state for logout
   final GlobalKey<FriendRequestsBadgeState> _badgeKey = GlobalKey();
 
   @override
@@ -110,25 +112,75 @@ class _ChatListScreenState extends State<ChatListScreen> {
           content: const Text('Are you sure you want to logout?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: _isLoggingOut ? null : () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Navigate to login screen and clear all previous routes
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AuthScreen()),
-                  (route) => false,
-                );
-              },
-              child: const Text('Logout'),
+              onPressed: _isLoggingOut ? null : _performLogout,
+              child: _isLoggingOut
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Logout'),
             ),
           ],
         );
       },
     );
+  }
+
+  Future<void> _performLogout() async {
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    try {
+      // Clear the stored token
+      await LoginApi.clearToken();
+      
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged out successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Close the dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // Navigate to login screen and clear all previous routes
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isLoggingOut = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logout failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -178,7 +230,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             ),
             IconButton(
               icon: const Icon(Icons.logout),
-              onPressed: _handleLogout,
+              onPressed: _isLoggingOut ? null : _handleLogout,
               tooltip: 'Logout',
             ),
             PopupMenuButton<String>(
@@ -198,6 +250,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Settings feature coming soon!')),
                     );
+                    break;
+                  case 'logout':
+                    _handleLogout();
                     break;
                 }
               },
@@ -229,6 +284,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       Icon(Icons.settings),
                       SizedBox(width: 8),
                       Text('Settings'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout),
+                      SizedBox(width: 8),
+                      Text('Logout'),
                     ],
                   ),
                 ),
