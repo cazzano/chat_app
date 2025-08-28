@@ -1,1 +1,67 @@
-now i want to add an feature that when i verify the 2fa code from google authenticator then it will redirect it to the new screen named signup_backend.dart and it will have the input fields (username,password) and signup button and when we press the signup button then it will send the api to backend server okay and remember that after this screen it will shows the backup codes screen haah, and it will already fillup the username and password fields from the previous form when user enters the username and password haah, and the secret key will be the same which is verified from google authenticator haah okay now you need to implement this screen haah
+now you have to add an small button in the chat_list screen which will work to search the users in the database and shows the searched user and if the user searched correctly then it will shows the card like other social media shows but use the same ui of the app that we are using and then add an small option to send friend request to that user with the specified api and after that it will just shows the message of both apis only okay.apis ===>(curl --request GET \ --url http://localhost:2000/search_user \ --header 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTAxIiwidXNlcm5hbWUiOiJjYXp6YW5vIiwiZXhwIjoxNzU2MzY2OTI1LCJpYXQiOjE3NTYyODA1MjUsImlzcyI6InlvdXItYXBwLW5hbWUifQ.RqtZDBlfC4no6vfPNc5m1qEr74qOo8HStTSWre6nj8A' \ --header 'username: vincenzo')==> ({
+
+  "message": "User found successfully",
+
+  "searched_by": {
+
+    "user_id": "U03",
+
+    "username": "rico"
+
+  },
+
+  "timestamp": "2025-08-28T14:26:44.933964",
+
+  "user_data": {
+
+    "user_id": "U02",
+
+    "username": "vincenzo"
+
+  }
+
+}),====>(curl --request POST \ --url http://localhost:2000/send_friend_request \ --header 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTA0IiwidXNlcm5hbWUiOiJmcmllbmQiLCJleHAiOjE3NTY0NTk2NjMsImlhdCI6MTc1NjM3MzI2MywiaXNzIjoieW91ci1hcHAtbmFtZSJ9.bt96iltaJQy9sc0WfJqgFnF9DGr49SlCKQlCfsKQFk0' \ --header 'content-type: application/json' \ --data '{ "username": "rico" }')==>({
+
+  "message": "Friend request sent successfully!",
+
+  "recipient": {
+
+    "user_id": "U03",
+
+    "username": "rico"
+
+  },
+
+  "request_data": {
+
+    "action_required": "accept_or_reject",
+
+    "created_at": "2025-08-28T14:28:09.140933",
+
+    "from": "friend",
+
+    "message": "Friend request from friend",
+
+    "to": "rico",
+
+    "type": "friend_request"
+
+  },
+
+  "request_id": 4,
+
+  "sender": {
+
+    "user_id": "U04",
+
+    "username": "friend"
+
+  },
+
+  "status": "pending",
+
+  "timestamp": "2025-08-28T14:28:09.155333"
+
+}) and you have to take the token from this location okay (cat ~/.config/chat_app/token.json
+
+{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTA1IiwidXNlcm5hbWUiOiJrYW5qYXIiLCJleHAiOjE3NTY0NTkxMDAsImlhdCI6MTc1NjM3MjcwMCwiaXNzIjoieW91ci1hcHAtbmFtZSJ9.XG8lWZSDRKzrBS-M2sEE7HebI-gkOBczhlmSTnlM6G8","saved_at":"2025-08-28T14:18:20.597135"}⏎ ) and please implement this logic inside the search_and_send_request_api.dart

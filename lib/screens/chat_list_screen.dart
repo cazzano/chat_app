@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/conversation.dart';
 import '../data/mock_data.dart';
 import '../widgets/conversation_tile.dart';
+import '../widgets/user_search_dialog.dart';
 import 'chat_screen.dart';
 import 'auth_screen.dart';
 
@@ -76,6 +77,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
+  void _showUserSearchDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return const UserSearchDialog();
+      },
+    );
+  }
+
   void _handleLogout() {
     showDialog(
       context: context,
@@ -136,28 +146,33 @@ class _ChatListScreenState extends State<ChatListScreen> {
               icon: const Icon(Icons.search),
               onPressed: _startSearch,
             ),
-            if (!_isSearching) ...[
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: _handleLogout,
-                tooltip: 'Logout',
-              ),
-              PopupMenuButton<String>(
-                onSelected: (value) {
-                  // Handle menu item selection
-                },
-                itemBuilder: (BuildContext context) => [
-                  const PopupMenuItem(
-                    value: 'new_group',
-                    child: Text('New group'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'settings',
-                    child: Text('Settings'),
-                  ),
-                ],
-              ),
-            ],
+          if (!_isSearching) ...[
+            IconButton(
+              icon: const Icon(Icons.person_search),
+              onPressed: _showUserSearchDialog,
+              tooltip: 'Search Users',
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: _handleLogout,
+              tooltip: 'Logout',
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                // Handle menu item selection
+              },
+              itemBuilder: (BuildContext context) => [
+                const PopupMenuItem(
+                  value: 'new_group',
+                  child: Text('New group'),
+                ),
+                const PopupMenuItem(
+                  value: 'settings',
+                  child: Text('Settings'),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
       body: _conversations.isEmpty
@@ -184,18 +199,58 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       color: theme.hintColor,
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _showUserSearchDialog,
+                    icon: const Icon(Icons.person_search),
+                    label: const Text('Search Users'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             )
-          : ListView.builder(
-              itemCount: _conversations.length,
-              itemBuilder: (context, index) {
-                final conversation = _conversations[index];
-                return ConversationTile(
-                  conversation: conversation,
-                  onTap: () => _navigateToChat(conversation),
-                );
-              },
+          : Column(
+              children: [
+                // Quick action button for search users
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _showUserSearchDialog,
+                          icon: const Icon(Icons.person_search, size: 18),
+                          label: const Text('Search Users'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Conversations list
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _conversations.length,
+                    itemBuilder: (context, index) {
+                      final conversation = _conversations[index];
+                      return ConversationTile(
+                        conversation: conversation,
+                        onTap: () => _navigateToChat(conversation),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _startNewChat,
