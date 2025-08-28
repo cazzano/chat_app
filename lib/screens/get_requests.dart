@@ -42,7 +42,7 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
       setState(() {
         _selectedFilter = _filters[_tabController.index];
       });
-      _loadFriendRequests();
+      _loadFriendRequests(); // Load from server when filter changes
     }
   }
 
@@ -152,17 +152,18 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
 
       if (response.statusCode == 200 && data['success'] == true) {
         // Show success message
+        String actionText = action == 'accept' ? 'accepted' : 'rejected';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(data['message'] ?? 'Request ${action}ed successfully'),
+            content: Text(data['message'] ?? 'Request $actionText successfully'),
             backgroundColor: action == 'accept' ? Colors.green : Colors.orange,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 3),
           ),
         );
 
-        // Reload friend requests to reflect the change
-        await _loadFriendRequests();
+        // Don't reload automatically - only update local state if needed
+        // The requests will be refreshed when user manually refreshes or changes filter
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -282,7 +283,7 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _isLoading ? null : _loadFriendRequests,
-            tooltip: 'Refresh',
+            tooltip: 'Refresh from server',
           ),
         ],
         bottom: TabBar(
@@ -345,7 +346,7 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
                             padding: const EdgeInsets.only(bottom: 8),
                             child: FriendRequestTile(
                               friendRequest: request,
-                              onAccept: request.status == 'pending'
+                              onAccept: (request.status == 'pending' || request.status == 'rejected')
                                   ? () => _respondToFriendRequest(request.senderUsername, 'accept')
                                   : null,
                               onReject: request.status == 'pending'

@@ -90,7 +90,8 @@ class _FriendRequestTileState extends State<FriendRequestTile>
   }
 
   Widget _buildActionButtons() {
-    if (widget.friendRequest.status != 'pending') {
+    // For accepted requests, show status only
+    if (widget.friendRequest.status == 'accepted') {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -123,84 +124,180 @@ class _FriendRequestTileState extends State<FriendRequestTile>
       );
     }
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Reject button
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.red.withOpacity(0.3),
-              width: 1,
+    // For pending requests, show accept/reject buttons
+    if (widget.friendRequest.status == 'pending') {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Reject button
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.red.withOpacity(0.3),
+                width: 1,
+              ),
             ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: _isProcessing ? null : () => _handleAction(widget.onReject),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                child: _isProcessing
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.red.withOpacity(0.6),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: _isProcessing ? null : () => _handleAction(widget.onReject),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  child: _isProcessing
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.red.withOpacity(0.6),
+                          ),
+                        )
+                      : Icon(
+                          Icons.close,
+                          color: Colors.red.withOpacity(0.8),
+                          size: 20,
                         ),
-                      )
-                    : Icon(
-                        Icons.close,
-                        color: Colors.red.withOpacity(0.8),
-                        size: 20,
-                      ),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        // Accept button
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.green,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.green.withOpacity(0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: _isProcessing ? null : () => _handleAction(widget.onAccept),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                child: _isProcessing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
+          const SizedBox(width: 12),
+          // Accept button
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.green,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: _isProcessing ? null : () => _handleAction(widget.onAccept),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.check,
                           color: Colors.white,
+                          size: 20,
                         ),
-                      )
-                    : const Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                ),
               ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    }
+
+    // For rejected requests, show re-accept button
+    if (widget.friendRequest.status == 'rejected') {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Status indicator
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getStatusColor(context).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _getStatusColor(context).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getStatusIcon(),
+                  size: 12,
+                  color: _getStatusColor(context),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Rejected',
+                  style: TextStyle(
+                    color: _getStatusColor(context),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Re-accept button
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: Colors.green.withOpacity(0.1),
+              border: Border.all(
+                color: Colors.green.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: _isProcessing ? null : () => _handleAction(widget.onAccept),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _isProcessing
+                          ? SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.green.withOpacity(0.8),
+                              ),
+                            )
+                          : Icon(
+                              Icons.refresh,
+                              color: Colors.green.withOpacity(0.8),
+                              size: 14,
+                            ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Re-accept',
+                        style: TextStyle(
+                          color: Colors.green.withOpacity(0.8),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Default fallback
+    return const SizedBox.shrink();
   }
 
   @override
@@ -298,7 +395,9 @@ class _FriendRequestTileState extends State<FriendRequestTile>
                         child: Text(
                           widget.friendRequest.requestData.message,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            fontStyle: FontStyle.italic,
+                            fontStyle: FontStyle.normal,
+                            color: theme.colorScheme.onSurface.withOpacity(0.8),
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
