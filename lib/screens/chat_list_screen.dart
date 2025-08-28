@@ -3,8 +3,10 @@ import '../models/conversation.dart';
 import '../data/mock_data.dart';
 import '../widgets/conversation_tile.dart';
 import '../widgets/user_search_dialog.dart';
+import '../widgets/friend_requests_badge.dart';
 import 'chat_screen.dart';
 import 'auth_screen.dart';
+import 'get_requests.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({Key? key}) : super(key: key);
@@ -17,6 +19,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   late List<Conversation> _conversations;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
+  final GlobalKey<FriendRequestsBadgeState> _badgeKey = GlobalKey();
 
   @override
   void initState() {
@@ -86,6 +89,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
+  void _navigateToFriendRequests() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const GetRequestsScreen(),
+      ),
+    ).then((_) {
+      // Refresh badge when returning from friend requests screen
+      _badgeKey.currentState?.refreshBadge();
+    });
+  }
+
   void _handleLogout() {
     showDialog(
       context: context,
@@ -129,9 +144,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 decoration: const InputDecoration(
                   hintText: 'Search conversations...',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: TextStyle(color: Colors.grey),
                 ),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(fontSize: 16),
                 onChanged: _onSearchChanged,
               )
             : const Text('Messages'),
@@ -141,12 +156,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
               icon: const Icon(Icons.close),
               onPressed: _stopSearch,
             )
-          else
+          else ...[
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: _startSearch,
             ),
-          if (!_isSearching) ...[
+            // Friend Requests Badge Button
+            FriendRequestsBadge(
+              key: _badgeKey,
+              onTap: _navigateToFriendRequests,
+              child: IconButton(
+                icon: const Icon(Icons.person_add_outlined),
+                onPressed: _navigateToFriendRequests,
+                tooltip: 'Friend Requests',
+              ),
+            ),
             IconButton(
               icon: const Icon(Icons.person_search),
               onPressed: _showUserSearchDialog,
@@ -159,16 +183,54 @@ class _ChatListScreenState extends State<ChatListScreen> {
             ),
             PopupMenuButton<String>(
               onSelected: (value) {
-                // Handle menu item selection
+                switch (value) {
+                  case 'friend_requests':
+                    _navigateToFriendRequests();
+                    break;
+                  case 'new_group':
+                    // Handle new group
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('New group feature coming soon!')),
+                    );
+                    break;
+                  case 'settings':
+                    // Handle settings
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Settings feature coming soon!')),
+                    );
+                    break;
+                }
               },
               itemBuilder: (BuildContext context) => [
                 const PopupMenuItem(
+                  value: 'friend_requests',
+                  child: Row(
+                    children: [
+                      Icon(Icons.person_add_outlined),
+                      SizedBox(width: 8),
+                      Text('Friend Requests'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
                   value: 'new_group',
-                  child: Text('New group'),
+                  child: Row(
+                    children: [
+                      Icon(Icons.group_add),
+                      SizedBox(width: 8),
+                      Text('New group'),
+                    ],
+                  ),
                 ),
                 const PopupMenuItem(
                   value: 'settings',
-                  child: Text('Settings'),
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings),
+                      SizedBox(width: 8),
+                      Text('Settings'),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -200,23 +262,43 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _showUserSearchDialog,
-                    icon: const Icon(Icons.person_search),
-                    label: const Text('Search Users'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _showUserSearchDialog,
+                        icon: const Icon(Icons.person_search),
+                        label: const Text('Search Users'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      FriendRequestsBadge(
+                        onTap: _navigateToFriendRequests,
+                        child: OutlinedButton.icon(
+                          onPressed: _navigateToFriendRequests,
+                          icon: const Icon(Icons.person_add_outlined),
+                          label: const Text('Requests'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             )
           : Column(
               children: [
-                // Quick action button for search users
+                // Quick action buttons for search users and friend requests
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
@@ -228,6 +310,24 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           label: const Text('Search Users'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FriendRequestsBadge(
+                        onTap: _navigateToFriendRequests,
+                        child: OutlinedButton.icon(
+                          onPressed: _navigateToFriendRequests,
+                          icon: const Icon(Icons.person_add_outlined, size: 18),
+                          label: const Text('Requests'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 16,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24),
                             ),
@@ -255,6 +355,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _startNewChat,
         child: const Icon(Icons.chat),
+        tooltip: 'Start new chat',
       ),
     );
   }
