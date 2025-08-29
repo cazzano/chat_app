@@ -4,7 +4,8 @@ import '../data/mock_data.dart';
 import '../widgets/conversation_tile.dart';
 import '../widgets/user_search_dialog.dart';
 import '../widgets/friend_requests_badge.dart';
-import '../services/login_api.dart'; // Add this import
+import '../services/login_api.dart';
+import '../services/get_friends.dart'; // Add this import
 import 'chat_screen.dart';
 import 'auth_screen.dart';
 import 'get_requests.dart';
@@ -20,17 +21,66 @@ class _ChatListScreenState extends State<ChatListScreen> {
   late List<Conversation> _conversations;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
-  bool _isLoggingOut = false; // Add loading state for logout
+  bool _isLoggingOut = false;
+  bool _isLoadingFriends = true; // Add loading state for friends
+  String? _errorMessage; // Add error handling
   final GlobalKey<FriendRequestsBadgeState> _badgeKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _loadConversations();
+    _loadFriends();
   }
 
-  void _loadConversations() {
-    _conversations = MockData.getMockConversations();
+  Future<void> _loadFriends() async {
+    setState(() {
+      _isLoadingFriends = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final friends = await GetFriendsApi.getFriendsList();
+      
+      // Convert friends to conversations
+      final conversations = friends.map((friend) {
+        return Conversation(
+          id: friend.friendId,
+          contactName: friend.friendUsername,
+          lastMessage: 'Start a conversation with ${friend.friendUsername}',
+          timestamp: DateTime.parse(friend.friendshipDate),
+          unreadCount: 0,
+          messages: [], // Start with empty messages
+        );
+      }).toList();
+
+      // Sort conversations by friendship date (most recent first)
+      conversations.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      setState(() {
+        _conversations = conversations;
+        _isLoadingFriends = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingFriends = false;
+        _errorMessage = 'Failed to load friends: ${e.toString()}';
+        _conversations = []; // Fallback to empty list
+      });
+      
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load friends: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _loadFriends,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _onSearchChanged(String query) {
@@ -68,18 +118,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
         builder: (context) => ChatScreen(conversation: conversation),
       ),
     ).then((_) {
-      // Refresh the conversation list when returning from chat
-      setState(() {
-        _conversations = MockData.getMockConversations();
-      });
+      // Refresh the friends list when returning from chat
+      _loadFriends();
     });
   }
 
   void _startNewChat() {
-    // In a real app, this would open a new chat screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Start new chat')),
-    );
+    _showUserSearchDialog();
   }
 
   void _showUserSearchDialog() {
@@ -98,8 +143,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
         builder: (context) => const GetRequestsScreen(),
       ),
     ).then((_) {
-      // Refresh badge when returning from friend requests screen
+      // Refresh badge and friends list when returning from friend requests screen
       _badgeKey.currentState?.refreshBadge();
+      _loadFriends(); // Reload friends in case new ones were accepted
     });
   }
 
@@ -213,6 +259,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
               icon: const Icon(Icons.search),
               onPressed: _startSearch,
             ),
+            // Refresh friends button
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _isLoadingFriends ? null : _loadFriends,
+              tooltip: 'Refresh Friends',
+            ),
             // Friend Requests Badge Button
             FriendRequestsBadge(
               key: _badgeKey,
@@ -236,6 +288,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
             PopupMenuButton<String>(
               onSelected: (value) {
                 switch (value) {
+                  case 'refresh_friends':
+                    _loadFriends();
+                    break;
                   case 'friend_requests':
                     _navigateToFriendRequests();
                     break;
@@ -257,6 +312,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 }
               },
               itemBuilder: (BuildContext context) => [
+                const PopupMenuItem(
+                  value: 'refresh_friends',
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh),
+                      SizedBox(width: 8),
+                      Text('Refresh Friends'),
+                    ],
+                  ),
+                ),
                 const PopupMenuItem(
                   value: 'friend_requests',
                   child: Row(
@@ -302,125 +367,190 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ],
         ],
       ),
-      body: _conversations.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.chat_bubble_outline,
-                    size: 80,
-                    color: theme.hintColor.withOpacity(0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No conversations yet',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      color: theme.hintColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Start a new conversation',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.hintColor,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
+      body: _isLoadingFriends
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: theme.colorScheme.error,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error Loading Friends',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          _errorMessage!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
                       ElevatedButton.icon(
-                        onPressed: _showUserSearchDialog,
-                        icon: const Icon(Icons.person_search),
-                        label: const Text('Search Users'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FriendRequestsBadge(
-                        onTap: _navigateToFriendRequests,
-                        child: OutlinedButton.icon(
-                          onPressed: _navigateToFriendRequests,
-                          icon: const Icon(Icons.person_add_outlined),
-                          label: const Text('Requests'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
+                        onPressed: _loadFriends,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
                       ),
                     ],
                   ),
-                ],
-              ),
-            )
-          : Column(
-              children: [
-                // Quick action buttons for search users and friend requests
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _showUserSearchDialog,
-                          icon: const Icon(Icons.person_search, size: 18),
-                          label: const Text('Search Users'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
+                )
+              : _conversations.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 80,
+                            color: theme.hintColor.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No friends yet',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: theme.hintColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Add some friends to start chatting',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.hintColor,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: _showUserSearchDialog,
+                                icon: const Icon(Icons.person_search),
+                                label: const Text('Search Users'),
+                                style: ElevatedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              FriendRequestsBadge(
+                                onTap: _navigateToFriendRequests,
+                                child: OutlinedButton.icon(
+                                  onPressed: _navigateToFriendRequests,
+                                  icon: const Icon(Icons.person_add_outlined),
+                                  label: const Text('Requests'),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      children: [
+                        // Quick action buttons for search users and friend requests
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: _showUserSearchDialog,
+                                  icon: const Icon(Icons.person_search, size: 18),
+                                  label: const Text('Search Users'),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              FriendRequestsBadge(
+                                onTap: _navigateToFriendRequests,
+                                child: OutlinedButton.icon(
+                                  onPressed: _navigateToFriendRequests,
+                                  icon: const Icon(Icons.person_add_outlined, size: 18),
+                                  label: const Text('Requests'),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                      horizontal: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Friends count info
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 16,
+                                color: theme.colorScheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${_conversations.length} friends',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Conversations list
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: _loadFriends,
+                            child: ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: _conversations.length,
+                              itemBuilder: (context, index) {
+                                final conversation = _conversations[index];
+                                return ConversationTile(
+                                  conversation: conversation,
+                                  onTap: () => _navigateToChat(conversation),
+                                );
+                              },
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      FriendRequestsBadge(
-                        onTap: _navigateToFriendRequests,
-                        child: OutlinedButton.icon(
-                          onPressed: _navigateToFriendRequests,
-                          icon: const Icon(Icons.person_add_outlined, size: 18),
-                          label: const Text('Requests'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 16,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Conversations list
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _conversations.length,
-                    itemBuilder: (context, index) {
-                      final conversation = _conversations[index];
-                      return ConversationTile(
-                        conversation: conversation,
-                        onTap: () => _navigateToChat(conversation),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
+                      ],
+                    ),
       floatingActionButton: FloatingActionButton(
         onPressed: _startNewChat,
-        child: const Icon(Icons.chat),
-        tooltip: 'Start new chat',
+        child: const Icon(Icons.person_search),
+        tooltip: 'Search Users',
       ),
     );
   }

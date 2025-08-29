@@ -1,11 +1,77 @@
+now you have to integrate this get_friends api to the chat_list screen where the friends are listed haah and please get the token from (~/.config/chat_app/token.json).api ==>(curl --request GET \ --url http://localhost:2000/auth/get_friends \ --header 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTAxIiwidXNlcm5hbWUiOiJjYXp6YW5vIiwiZXhwIjoxNzU2NTU0NDA5LCJpYXQiOjE3NTY0NjgwMDksImlzcyI6InlvdXItYXBwLW5hbWUifQ.KDcdpxXm4J350kMk4UU6_DK2G0Lry9IWE7j7TA38u9o')=====>({
 
+  "friends": [
 
-now can you fix the font of the italic one and please add an feature to accept the rejected request and it will only refresh the requests from the server until i press the refresh button or click on the filter options okay.
+    {
 
+      "friend_id": "U04",
 
-Upgrade to connect your tools to Claude
+      "friend_username": "friend",
 
+      "friendship_date": "2025-08-28 14:38:04",
 
+      "friendship_id": 7,
 
+      "status": "active"
 
+    },
 
+    {
+
+      "friend_id": "U05",
+
+      "friend_username": "kanjar",
+
+      "friendship_date": "2025-08-28 14:38:02",
+
+      "friendship_id": 6,
+
+      "status": "active"
+
+    },
+
+    {
+
+      "friend_id": "U03",
+
+      "friend_username": "rico",
+
+      "friendship_date": "2025-08-27 08:06:58",
+
+      "friendship_id": 2,
+
+      "status": "active"
+
+    },
+
+    {
+
+      "friend_id": "U02",
+
+      "friend_username": "vincenzo",
+
+      "friendship_date": "2025-08-27 08:04:08",
+
+      "friendship_id": 1,
+
+      "status": "active"
+
+    }
+
+  ],
+
+  "success": true,
+
+  "timestamp": "2025-08-29T11:47:06.972482",
+
+  "total_friends": 4,
+
+  "user_info": {
+
+    "user_id": "U01",
+
+    "username": "cazzano"
+
+  }
+
+})and please implement this on a new module named get_friends.dart haah.
