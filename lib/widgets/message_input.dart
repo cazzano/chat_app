@@ -24,15 +24,22 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   bool _hasText = false;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onTextChanged);
+    
+    // Debug: Monitor focus changes
+    _focusNode.addListener(() {
+      print('DEBUG MessageInput: Focus changed - hasFocus: ${_focusNode.hasFocus}');
+    });
   }
 
   @override
   void dispose() {
+    print('DEBUG MessageInput: Disposing MessageInput');
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -43,23 +50,80 @@ class _MessageInputState extends State<MessageInput> {
     setState(() {
       _hasText = _controller.text.trim().isNotEmpty;
     });
+    print('DEBUG MessageInput: Text changed - hasText: $_hasText, text length: ${_controller.text.length}');
   }
 
-  void _handleSubmitted(String text) {
+  void _handleSubmitted(String text) async {
     final trimmedText = text.trim();
-    if (trimmedText.isNotEmpty && !widget.isSendingMessage) {
-      widget.onSubmitted(trimmedText);
-      _controller.clear();
-      setState(() => _hasText = false);
-      
-      // Keep focus on the input field after sending
-      _focusNode.requestFocus();
-      
-      // Auto-scroll to bottom after a short delay to allow for new message to be added
-      Future.delayed(const Duration(milliseconds: 100), () {
-        _scrollToBottom();
+    print('DEBUG MessageInput: _handleSubmitted called - text: "$trimmedText", isSendingMessage: ${widget.isSendingMessage}, isSubmitting: $_isSubmitting');
+    
+    if (trimmedText.isNotEmpty && !widget.isSendingMessage && !_isSubmitting) {
+      setState(() {
+        _isSubmitting = true;
       });
+      
+      print('DEBUG MessageInput: About to call onSubmitted callback');
+      
+      // Clear the text first but don't lose focus yet
+      _controller.clear();
+      setState(() {
+        _hasText = false;
+      });
+      
+      // Call the parent's submit handler
+      widget.onSubmitted(trimmedText);
+      
+      print('DEBUG MessageInput: Called onSubmitted, now managing focus');
+      
+      // Aggressive focus management - try multiple approaches
+      _maintainFocus();
+      
+      setState(() {
+        _isSubmitting = false;
+      });
+    } else {
+      print('DEBUG MessageInput: Submit rejected - trimmedText.isEmpty: ${trimmedText.isEmpty}, isSendingMessage: ${widget.isSendingMessage}, isSubmitting: $_isSubmitting');
     }
+  }
+
+  void _maintainFocus() {
+    print('DEBUG MessageInput: _maintainFocus called - current focus: ${_focusNode.hasFocus}');
+    
+    // Immediate focus request
+    if (!_focusNode.hasFocus) {
+      _focusNode.requestFocus();
+      print('DEBUG MessageInput: Immediate focus request made');
+    }
+    
+    // Post frame callback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_focusNode.hasFocus) {
+        print('DEBUG MessageInput: Post-frame focus request - mounted: $mounted, hasFocus: ${_focusNode.hasFocus}');
+        _focusNode.requestFocus();
+      }
+    });
+    
+    // Multiple delayed attempts
+    Future.delayed(const Duration(milliseconds: 10), () {
+      if (mounted && !_focusNode.hasFocus) {
+        print('DEBUG MessageInput: 10ms delayed focus request');
+        _focusNode.requestFocus();
+      }
+    });
+    
+    Future.delayed(const Duration(milliseconds: 50), () {
+      if (mounted && !_focusNode.hasFocus) {
+        print('DEBUG MessageInput: 50ms delayed focus request');
+        _focusNode.requestFocus();
+      }
+    });
+    
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted && !_focusNode.hasFocus) {
+        print('DEBUG MessageInput: 100ms delayed focus request');
+        _focusNode.requestFocus();
+      }
+    });
   }
 
   void _scrollToBottom() {

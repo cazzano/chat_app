@@ -83,33 +83,48 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _scrollToBottomAfterDelay([int delayMs = 100]) {
+    print('DEBUG ChatScreen: _scrollToBottomAfterDelay called with delay: ${delayMs}ms');
     Future.delayed(Duration(milliseconds: delayMs), () {
       if (_scrollController.hasClients) {
+        print('DEBUG ChatScreen: Scrolling to bottom - maxScrollExtent: ${_scrollController.position.maxScrollExtent}');
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
+      } else {
+        print('DEBUG ChatScreen: ScrollController has no clients');
       }
     });
   }
 
   void _scrollToBottomInstant() {
+    print('DEBUG ChatScreen: _scrollToBottomInstant called');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
+        print('DEBUG ChatScreen: Instant scroll to bottom - maxScrollExtent: ${_scrollController.position.maxScrollExtent}');
         _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      } else {
+        print('DEBUG ChatScreen: ScrollController has no clients for instant scroll');
       }
     });
   }
 
   Future<void> _handleSubmitted(String text) async {
-    if (text.trim().isEmpty || _isSendingMessage) return;
+    print('DEBUG ChatScreen: _handleSubmitted called - text: "$text", isSendingMessage: $_isSendingMessage');
+    
+    if (text.trim().isEmpty || _isSendingMessage) {
+      print('DEBUG ChatScreen: Submit rejected - empty text or already sending');
+      return;
+    }
 
+    print('DEBUG ChatScreen: Setting isSendingMessage to true');
     setState(() {
       _isSendingMessage = true;
     });
 
     try {
+      print('DEBUG ChatScreen: Calling API to send message');
       // Send message via API
       final sentMessage = await ConversationApi.sendMessageAndReturnMessage(
         message: text.trim(),
@@ -117,14 +132,25 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       if (sentMessage != null) {
+        print('DEBUG ChatScreen: Message sent successfully, adding to messages list');
         setState(() {
           _messages.add(sentMessage);
           _isSendingMessage = false;
         });
 
-        // Auto-scroll to bottom after adding new message
-        _scrollToBottomAfterDelay(50);
+        // Only do minimal scroll after adding message - don't interfere with focus
+        print('DEBUG ChatScreen: Scheduling minimal scroll to bottom');
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _scrollController.position.maxScrollExtent,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+            );
+          }
+        });
       } else {
+        print('DEBUG ChatScreen: API returned null message');
         setState(() {
           _isSendingMessage = false;
         });
@@ -139,6 +165,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
     } catch (e) {
+      print('DEBUG ChatScreen: Error sending message: $e');
       setState(() {
         _isSendingMessage = false;
       });
