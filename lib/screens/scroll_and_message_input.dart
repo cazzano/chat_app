@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 
-class MessageInput extends StatefulWidget {
+class ScrollAndMessageInput extends StatefulWidget {
   final ValueChanged<String> onSubmitted;
   final VoidCallback? onAttachmentPressed;
   final VoidCallback? onEmojiPressed;
   final bool isSendingMessage;
-  final ScrollController? scrollController;
+  final ScrollController scrollController;
 
-  const MessageInput({
+  const ScrollAndMessageInput({
     Key? key,
     required this.onSubmitted,
     this.onAttachmentPressed,
     this.onEmojiPressed,
     this.isSendingMessage = false,
-    this.scrollController,
+    required this.scrollController,
   }) : super(key: key);
 
   @override
-  State<MessageInput> createState() => _MessageInputState();
+  State<ScrollAndMessageInput> createState() => _ScrollAndMessageInputState();
 }
 
-class _MessageInputState extends State<MessageInput> {
+class _ScrollAndMessageInputState extends State<ScrollAndMessageInput> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   bool _hasText = false;
@@ -63,13 +63,20 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void _scrollToBottom() {
-    if (widget.scrollController != null && widget.scrollController!.hasClients) {
-      widget.scrollController!.animateTo(
-        widget.scrollController!.position.maxScrollExtent,
+    if (widget.scrollController.hasClients) {
+      widget.scrollController.animateTo(
+        widget.scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     }
+  }
+
+  // Method to scroll to bottom when new messages are received externally
+  void scrollToBottomExternal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
   }
 
   @override
@@ -95,13 +102,13 @@ class _MessageInputState extends State<MessageInput> {
             // Attachment button
             IconButton(
               icon: const Icon(Icons.attach_file_rounded),
-              onPressed: widget.isSendingMessage ? null : widget.onAttachmentPressed,
+              onPressed: widget.onAttachmentPressed,
               color: theme.colorScheme.primary,
             ),
             // Emoji button
             IconButton(
               icon: const Icon(Icons.emoji_emotions_outlined),
-              onPressed: widget.isSendingMessage ? null : widget.onEmojiPressed,
+              onPressed: widget.onEmojiPressed,
               color: theme.colorScheme.primary,
             ),
             // Text input field
@@ -170,5 +177,45 @@ class _MessageInputState extends State<MessageInput> {
         ),
       ),
     );
+  }
+}
+
+// Enhanced Auto Scroll Mixin for better scroll management
+mixin AutoScrollMixin<T extends StatefulWidget> on State<T> {
+  ScrollController get scrollController;
+  
+  void scrollToBottomAnimated({
+    Duration duration = const Duration(milliseconds: 300),
+    Curve curve = Curves.easeOut,
+  }) {
+    if (scrollController.hasClients) {
+      scrollController.animateTo(
+        scrollController.position.maxScrollExtent,
+        duration: duration,
+        curve: curve,
+      );
+    }
+  }
+  
+  void scrollToBottomInstant() {
+    if (scrollController.hasClients) {
+      scrollController.jumpTo(scrollController.position.maxScrollExtent);
+    }
+  }
+  
+  // Call this method after adding new messages to automatically scroll
+  void onNewMessageAdded() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      scrollToBottomAnimated();
+    });
+  }
+  
+  // Call this method when the widget is built for the first time with messages
+  void onInitialLoad() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scrollController.hasClients) {
+        scrollController.jumpTo(scrollController.position.maxScrollExtent);
+      }
+    });
   }
 }

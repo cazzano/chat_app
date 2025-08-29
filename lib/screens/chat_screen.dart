@@ -60,9 +60,7 @@ class _ChatScreenState extends State<ChatScreen> {
       });
 
       // Scroll to bottom after loading messages
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
+      _scrollToBottomAfterDelay();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -84,14 +82,24 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+  void _scrollToBottomAfterDelay([int delayMs = 100]) {
+    Future.delayed(Duration(milliseconds: delayMs), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  void _scrollToBottomInstant() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
   Future<void> _handleSubmitted(String text) async {
@@ -114,8 +122,8 @@ class _ChatScreenState extends State<ChatScreen> {
           _isSendingMessage = false;
         });
 
-        // Scroll to bottom after adding a new message
-        _scrollToBottom();
+        // Auto-scroll to bottom after adding new message
+        _scrollToBottomAfterDelay(50);
       } else {
         setState(() {
           _isSendingMessage = false;
@@ -151,6 +159,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onAttachmentPressed() {
+    if (_isSendingMessage) return;
+    
     // Show attachment options
     showModalBottomSheet(
       context: context,
@@ -200,6 +210,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onEmojiPressed() {
+    if (_isSendingMessage) return;
+    
     setState(() {
       _showEmojiPicker = !_showEmojiPicker;
     });
@@ -289,6 +301,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     const SnackBar(content: Text('Contact info coming soon!')),
                   );
                   break;
+                case 'scroll_bottom':
+                  _scrollToBottomAfterDelay(0);
+                  break;
               }
             },
             itemBuilder: (BuildContext context) => [
@@ -299,6 +314,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     Icon(Icons.refresh),
                     SizedBox(width: 8),
                     Text('Refresh'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'scroll_bottom',
+                child: Row(
+                  children: [
+                    Icon(Icons.keyboard_arrow_down),
+                    SizedBox(width: 8),
+                    Text('Scroll to bottom'),
                   ],
                 ),
               ),
@@ -427,6 +452,11 @@ class _ChatScreenState extends State<ChatScreen> {
                                   itemBuilder: (context, index) {
                                     final message = _messages[index];
 
+                                    // Auto-scroll to bottom when building the last message
+                                    if (index == _messages.length - 1) {
+                                      _scrollToBottomInstant();
+                                    }
+
                                     return MessageBubble(
                                       message: message,
                                       showSenderName: false,
@@ -438,36 +468,14 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          // Loading indicator for sending message
-          if (_isSendingMessage)
-            Container(
-              padding: const EdgeInsets.all(8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Sending message...',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          // Message input
+          // Sending indicator removed from here since it's now in the send button
+          // Message input with enhanced functionality
           MessageInput(
             onSubmitted: _handleSubmitted,
             onAttachmentPressed: _onAttachmentPressed,
             onEmojiPressed: _onEmojiPressed,
+            isSendingMessage: _isSendingMessage,
+            scrollController: _scrollController,
           ),
           // Emoji picker (conditionally shown)
           if (_showEmojiPicker)
@@ -505,6 +513,15 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
         ],
       ),
+      // Floating action button for quick scroll to bottom
+      floatingActionButton: _messages.length > 10
+          ? FloatingActionButton(
+              onPressed: () => _scrollToBottomAfterDelay(0),
+              mini: true,
+              child: const Icon(Icons.keyboard_arrow_down),
+              tooltip: 'Scroll to bottom',
+            )
+          : null,
     );
   }
 
