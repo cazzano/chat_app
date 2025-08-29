@@ -1,77 +1,177 @@
-now you have to integrate this get_friends api to the chat_list screen where the friends are listed haah and please get the token from (~/.config/chat_app/token.json).api ==>(curl --request GET \ --url http://localhost:2000/auth/get_friends \ --header 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTAxIiwidXNlcm5hbWUiOiJjYXp6YW5vIiwiZXhwIjoxNzU2NTU0NDA5LCJpYXQiOjE3NTY0NjgwMDksImlzcyI6InlvdXItYXBwLW5hbWUifQ.KDcdpxXm4J350kMk4UU6_DK2G0Lry9IWE7j7TA38u9o')=====>({
+now i want to integrate this api to send messages to the user haah and get conversations between that user haah and implement this on a new module named send_and_get_conversation.dart and you can predict the user_id from get_friends api format easily okay===>(curl --request POST \ --url http://localhost:2000/auth/send_message \ --header 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTAxIiwidXNlcm5hbWUiOiJjYXp6YW5vIiwiZXhwIjoxNzU2NTU0NDA5LCJpYXQiOjE3NTY0NjgwMDksImlzcyI6InlvdXItYXBwLW5hbWUifQ.KDcdpxXm4J350kMk4UU6_DK2G0Lry9IWE7j7TA38u9o' \ --header 'content-type: application/json' \ --data '{ "message": "i want to talk with you", "recipient_user_id": "U02" }')===>({
 
-  "friends": [
+  "message": "Message sent successfully",
+
+  "message_id": 13,
+
+  "recipient": "U02",
+
+  "sender": "U01",
+
+  "timestamp": "2025-08-29T17:05:33.964235"
+
+}),(curl --request GET \ --url http://localhost:2000/auth/conversation/U02 \ --header 'authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTAxIiwidXNlcm5hbWUiOiJjYXp6YW5vIiwiZXhwIjoxNzU2NTU0NDA5LCJpYXQiOjE3NTY0NjgwMDksImlzcyI6InlvdXItYXBwLW5hbWUifQ.KDcdpxXm4J350kMk4UU6_DK2G0Lry9IWE7j7TA38u9o')===>({
+
+  "conversation": [
 
     {
 
-      "friend_id": "U04",
+      "direction": "sent",
 
-      "friend_username": "friend",
+      "is_read": true,
 
-      "friendship_date": "2025-08-28 14:38:04",
+      "message": "hello vincenzo",
 
-      "friendship_id": 7,
+      "message_id": 1,
 
-      "status": "active"
+      "recipient": "U02",
+
+      "sender": "U01",
+
+      "timestamp": "2025-08-27 09:21:52"
 
     },
 
     {
 
-      "friend_id": "U05",
+      "direction": "sent",
 
-      "friend_username": "kanjar",
+      "is_read": true,
 
-      "friendship_date": "2025-08-28 14:38:02",
+      "message": "can we talk",
 
-      "friendship_id": 6,
+      "message_id": 2,
 
-      "status": "active"
+      "recipient": "U02",
 
-    },
+      "sender": "U01",
 
-    {
-
-      "friend_id": "U03",
-
-      "friend_username": "rico",
-
-      "friendship_date": "2025-08-27 08:06:58",
-
-      "friendship_id": 2,
-
-      "status": "active"
+      "timestamp": "2025-08-27 09:22:03"
 
     },
 
     {
 
-      "friend_id": "U02",
+      "direction": "sent",
 
-      "friend_username": "vincenzo",
+      "is_read": true,
 
-      "friendship_date": "2025-08-27 08:04:08",
+      "message": "can we share our thoughts",
 
-      "friendship_id": 1,
+      "message_id": 3,
 
-      "status": "active"
+      "recipient": "U02",
+
+      "sender": "U01",
+
+      "timestamp": "2025-08-27 09:22:15"
+
+    },
+
+    {
+
+      "direction": "received",
+
+      "is_read": true,
+
+      "message": "i am good",
+
+      "message_id": 4,
+
+      "recipient": "U01",
+
+      "sender": "U02",
+
+      "timestamp": "2025-08-27 09:23:09"
+
+    },
+
+    {
+
+      "direction": "received",
+
+      "is_read": true,
+
+      "message": "what about you my frined",
+
+      "message_id": 5,
+
+      "recipient": "U01",
+
+      "sender": "U02",
+
+      "timestamp": "2025-08-27 09:23:22"
+
+    },
+
+    {
+
+      "direction": "received",
+
+      "is_read": true,
+
+      "message": "yes we can exchange our thoughts haah",
+
+      "message_id": 6,
+
+      "recipient": "U01",
+
+      "sender": "U02",
+
+      "timestamp": "2025-08-27 09:23:40"
+
+    },
+
+    {
+
+      "direction": "received",
+
+      "is_read": true,
+
+      "message": "how are you",
+
+      "message_id": 7,
+
+      "recipient": "U01",
+
+      "sender": "U02",
+
+      "timestamp": "2025-08-27 09:34:38"
+
+    },
+
+    {
+
+      "direction": "sent",
+
+      "is_read": false,
+
+      "message": "i want to talk with you",
+
+      "message_id": 13,
+
+      "recipient": "U02",
+
+      "sender": "U01",
+
+      "timestamp": "2025-08-29 12:05:33"
 
     }
 
   ],
 
-  "success": true,
+  "current_user": "U01",
 
-  "timestamp": "2025-08-29T11:47:06.972482",
+  "other_user": "U02",
 
-  "total_friends": 4,
+  "participants": [
 
-  "user_info": {
+    "U01",
 
-    "user_id": "U01",
+    "U02"
 
-    "username": "cazzano"
+  ],
 
-  }
+  "total_messages": 8
 
-})and please implement this on a new module named get_friends.dart haah.
+}) and now use this token (~/.config/chat_app/token.json).

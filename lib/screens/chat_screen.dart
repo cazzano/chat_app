@@ -3,7 +3,8 @@ import '../models/conversation.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/message_input.dart';
-import '../data/mock_data.dart';
+import '../services/send_and_get_conversation.dart';
+import '../services/get_friends.dart';
 
 class ChatScreen extends StatefulWidget {
   final Conversation conversation;
@@ -20,20 +21,21 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   late List<Message> _messages;
   late String _contactName;
+  late String _userId;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   bool _showEmojiPicker = false;
+  bool _isLoading = true;
+  bool _isSendingMessage = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _messages = List.from(widget.conversation.messages);
     _contactName = widget.conversation.contactName;
-    
-    // Scroll to bottom when the widget is first built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
-    });
+    _userId = widget.conversation.id; // This should be the user ID from friends API
+    _messages = [];
+    _loadConversation();
   }
 
   @override
@@ -41,6 +43,45 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollController.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadConversation() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final messages = await ConversationApi.getConversationMessages(_userId);
+      
+      setState(() {
+        _messages = messages;
+        _isLoading = false;
+      });
+
+      // Scroll to bottom after loading messages
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToBottom();
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load conversation: ${e.toString()}';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load messages: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _loadConversation,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -53,25 +94,60 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _handleSubmitted(String text) {
-    if (text.trim().isEmpty) return;
-
-    final newMessage = Message(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      text: text,
-      isSentByMe: true,
-      timestamp: DateTime.now(),
-    );
+  Future<void> _handleSubmitted(String text) async {
+    if (text.trim().isEmpty || _isSendingMessage) return;
 
     setState(() {
-      _messages.add(newMessage);
+      _isSendingMessage = true;
     });
 
-    // Scroll to bottom after adding a new message
-    _scrollToBottom();
+    try {
+      // Send message via API
+      final sentMessage = await ConversationApi.sendMessageAndReturnMessage(
+        message: text.trim(),
+        recipientUserId: _userId,
+      );
 
-    // In a real app, you would send the message to a server here
-    // and update the UI when you get a response
+      if (sentMessage != null) {
+        setState(() {
+          _messages.add(sentMessage);
+          _isSendingMessage = false;
+        });
+
+        // Scroll to bottom after adding a new message
+        _scrollToBottom();
+      } else {
+        setState(() {
+          _isSendingMessage = false;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to send message'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isSendingMessage = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _refreshConversation() async {
+    await _loadConversation();
   }
 
   void _onAttachmentPressed() {
@@ -89,6 +165,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   // Handle photo library selection
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Photo sharing coming soon!')),
+                  );
                 },
               ),
               ListTile(
@@ -97,6 +176,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   // Handle camera
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Camera feature coming soon!')),
+                  );
                 },
               ),
               ListTile(
@@ -105,6 +187,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   // Handle document selection
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Document sharing coming soon!')),
+                  );
                 },
               ),
             ],
@@ -123,7 +208,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isGroupChat = _contactName == 'Team Flutter'; // Simple check for demo
+    final isGroupChat = false; // Individual conversations for now
 
     return Scaffold(
       appBar: AppBar(
@@ -157,11 +242,12 @@ class _ChatScreenState extends State<ChatScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (isGroupChat)
-                    Text(
-                      '${_messages.length} participants',
-                      style: theme.textTheme.labelSmall,
+                  Text(
+                    'User ID: $_userId',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.textTheme.labelSmall?.color?.withOpacity(0.7),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -169,45 +255,72 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _isLoading ? null : _refreshConversation,
+            tooltip: 'Refresh Messages',
+          ),
+          IconButton(
             icon: const Icon(Icons.phone),
             onPressed: () {
-              // Handle call
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Voice call coming soon!')),
+              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.videocam),
             onPressed: () {
-              // Handle video call
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Video call coming soon!')),
+              );
             },
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              // Handle menu item selection
+              switch (value) {
+                case 'refresh':
+                  _refreshConversation();
+                  break;
+                case 'clear_chat':
+                  _showClearChatDialog();
+                  break;
+                case 'view_contact':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Contact info coming soon!')),
+                  );
+                  break;
+              }
             },
             itemBuilder: (BuildContext context) => [
               const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'view_contact',
-                child: Text('View contact'),
+                child: Row(
+                  children: [
+                    Icon(Icons.person),
+                    SizedBox(width: 8),
+                    Text('View contact'),
+                  ],
+                ),
               ),
               const PopupMenuItem(
-                value: 'media',
-                child: Text('Media, links, and docs'),
-              ),
-              const PopupMenuItem(
-                value: 'search',
-                child: Text('Search'),
-              ),
-              const PopupMenuItem(
-                value: 'mute',
-                child: Text('Mute notifications'),
-              ),
-              const PopupMenuItem(
-                value: 'wallpaper',
-                child: Text('Wallpaper'),
-              ),
-              const PopupMenuItem(
-                value: 'more',
-                child: Text('More'),
+                value: 'clear_chat',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all),
+                    SizedBox(width: 8),
+                    Text('Clear chat (local)'),
+                  ],
+                ),
               ),
             ],
           ),
@@ -227,64 +340,129 @@ class _ChatScreenState extends State<ChatScreen> {
               },
               child: Container(
                 decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: const AssetImage('assets/chat_bg.png'),
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      theme.colorScheme.surface.withOpacity(0.9),
-                      BlendMode.dstOver,
-                    ),
-                  ),
+                  color: theme.colorScheme.surface,
                 ),
-                child: _messages.isEmpty
-                    ? Center(
+                child: _isLoading
+                    ? const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 80,
-                              color: theme.hintColor.withOpacity(0.5),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No messages yet',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: theme.hintColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Send your first message',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.hintColor,
-                              ),
-                            ),
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Loading messages...'),
                           ],
                         ),
                       )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-                        itemCount: _messages.length,
-                        itemBuilder: (context, index) {
-                          final message = _messages[index];
-                          final isGroupMessage = isGroupChat && !message.isSentByMe;
-                          final showSenderName = isGroupMessage &&
-                              (index == 0 ||
-                                  _messages[index - 1].isSentByMe !=
-                                      message.isSentByMe);
+                    : _errorMessage != null
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.error_outline,
+                                  size: 64,
+                                  color: theme.colorScheme.error,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error Loading Messages',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    color: theme.colorScheme.error,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  onPressed: _loadConversation,
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : _messages.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 80,
+                                      color: theme.hintColor.withOpacity(0.5),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No messages yet',
+                                      style: theme.textTheme.titleLarge?.copyWith(
+                                        color: theme.hintColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Send your first message to $_contactName',
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: theme.hintColor,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : RefreshIndicator(
+                                onRefresh: _refreshConversation,
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                                  itemCount: _messages.length,
+                                  itemBuilder: (context, index) {
+                                    final message = _messages[index];
 
-                          return MessageBubble(
-                            message: message,
-                            showSenderName: showSenderName,
-                            isGroupChat: isGroupChat,
-                          );
-                        },
-                      ),
+                                    return MessageBubble(
+                                      message: message,
+                                      showSenderName: false,
+                                      isGroupChat: isGroupChat,
+                                    );
+                                  },
+                                ),
+                              ),
               ),
             ),
           ),
+          // Loading indicator for sending message
+          if (_isSendingMessage)
+            Container(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Sending message...',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Message input
           MessageInput(
             onSubmitted: _handleSubmitted,
@@ -295,19 +473,71 @@ class _ChatScreenState extends State<ChatScreen> {
           if (_showEmojiPicker)
             SizedBox(
               height: 250,
-              child: Placeholder(
-                fallbackHeight: 250,
+              child: Container(
                 color: theme.colorScheme.surfaceVariant,
                 child: Center(
-                  child: Text(
-                    'Emoji Picker',
-                    style: theme.textTheme.bodyMedium,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.emoji_emotions_outlined,
+                        size: 48,
+                        color: theme.colorScheme.primary.withOpacity(0.5),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Emoji Picker',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Coming Soon!',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
         ],
       ),
+    );
+  }
+
+  void _showClearChatDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Chat'),
+          content: const Text(
+            'This will clear the chat messages from your local view only. '
+            'The messages will still exist on the server.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _messages.clear();
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Chat cleared locally')),
+                );
+              },
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
