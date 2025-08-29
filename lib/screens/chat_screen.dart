@@ -33,7 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _contactName = widget.conversation.contactName;
-    _userId = widget.conversation.id; // This should be the user ID from friends API
+    _userId = widget.conversation.id;
     _messages = [];
     _loadConversation();
   }
@@ -125,7 +125,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       print('DEBUG ChatScreen: Calling API to send message');
-      // Send message via API
       final sentMessage = await ConversationApi.sendMessageAndReturnMessage(
         message: text.trim(),
         recipientUserId: _userId,
@@ -135,16 +134,16 @@ class _ChatScreenState extends State<ChatScreen> {
         print('DEBUG ChatScreen: Message sent successfully, adding to messages list');
         setState(() {
           _messages.add(sentMessage);
-          _isSendingMessage = false;
+          _isSendingMessage = false; // Set to false BEFORE scheduling scroll
         });
 
-        // Only do minimal scroll after adding message - don't interfere with focus
-        print('DEBUG ChatScreen: Scheduling minimal scroll to bottom');
-        Future.delayed(const Duration(milliseconds: 200), () {
+        // Optimized scroll timing - reduced delay and smoother scroll
+        print('DEBUG ChatScreen: Scheduling optimized scroll to bottom');
+        Future.delayed(const Duration(milliseconds: 100), () {
           if (_scrollController.hasClients) {
             _scrollController.animateTo(
               _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 200),
+              duration: const Duration(milliseconds: 250),
               curve: Curves.easeOut,
             );
           }
@@ -201,7 +200,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: const Text('Photo Library'),
                 onTap: () {
                   Navigator.pop(context);
-                  // Handle photo library selection
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Photo sharing coming soon!')),
                   );
@@ -212,7 +210,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: const Text('Take Photo'),
                 onTap: () {
                   Navigator.pop(context);
-                  // Handle camera
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Camera feature coming soon!')),
                   );
@@ -223,7 +220,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: const Text('Document'),
                 onTap: () {
                   Navigator.pop(context);
-                  // Handle document selection
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Document sharing coming soon!')),
                   );
@@ -247,7 +243,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isGroupChat = false; // Individual conversations for now
+    final isGroupChat = false;
 
     return Scaffold(
       appBar: AppBar(
@@ -479,9 +475,13 @@ class _ChatScreenState extends State<ChatScreen> {
                                   itemBuilder: (context, index) {
                                     final message = _messages[index];
 
-                                    // Auto-scroll to bottom when building the last message
+                                    // Only auto-scroll on the last message and avoid doing it too frequently
                                     if (index == _messages.length - 1) {
-                                      _scrollToBottomInstant();
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (_scrollController.hasClients) {
+                                          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+                                        }
+                                      });
                                     }
 
                                     return MessageBubble(
@@ -495,7 +495,6 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          // Sending indicator removed from here since it's now in the send button
           // Message input with enhanced functionality
           MessageInput(
             onSubmitted: _handleSubmitted,
