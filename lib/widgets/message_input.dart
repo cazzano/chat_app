@@ -31,16 +31,10 @@ class _MessageInputState extends State<MessageInput> {
   void initState() {
     super.initState();
     _controller.addListener(_onTextChanged);
-    
-    // Debug: Monitor focus changes
-    _focusNode.addListener(() {
-      print('DEBUG MessageInput: Focus changed - hasFocus: ${_focusNode.hasFocus}');
-    });
   }
 
   @override
   void dispose() {
-    print('DEBUG MessageInput: Disposing MessageInput');
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -51,57 +45,40 @@ class _MessageInputState extends State<MessageInput> {
     setState(() {
       _hasText = _controller.text.trim().isNotEmpty;
     });
-    print('DEBUG MessageInput: Text changed - hasText: $_hasText, text length: ${_controller.text.length}');
   }
 
   Future<void> _handleSubmitted(String text) async {
     final trimmedText = text.trim();
-    print('DEBUG MessageInput: _handleSubmitted called - text: "$trimmedText", isSendingMessage: ${widget.isSendingMessage}, isSubmitting: $_isSubmitting');
     
     if (trimmedText.isNotEmpty && !widget.isSendingMessage && !_isSubmitting) {
       setState(() {
         _isSubmitting = true;
-        _shouldMaintainFocus = true; // Flag to maintain focus after submission
+        _shouldMaintainFocus = true;
       });
       
-      print('DEBUG MessageInput: About to call onSubmitted callback');
-      
-      // Clear the text first
       _controller.clear();
       setState(() {
         _hasText = false;
       });
       
-      // Call the parent's submit handler
       widget.onSubmitted(trimmedText);
       
-      print('DEBUG MessageInput: Called onSubmitted, scheduling focus restoration');
-      
-      // More efficient focus restoration - wait for parent to finish processing
       _scheduleEfficientFocusRestoration();
       
       setState(() {
         _isSubmitting = false;
       });
-    } else {
-      print('DEBUG MessageInput: Submit rejected - trimmedText.isEmpty: ${trimmedText.isEmpty}, isSendingMessage: ${widget.isSendingMessage}, isSubmitting: $_isSubmitting');
     }
   }
 
   void _scheduleEfficientFocusRestoration() {
-    print('DEBUG MessageInput: _scheduleEfficientFocusRestoration called');
-    
-    // Single, well-timed focus restoration instead of multiple attempts
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted && _shouldMaintainFocus && !_focusNode.hasFocus) {
-        print('DEBUG MessageInput: Executing scheduled focus restoration');
         _focusNode.requestFocus();
         _shouldMaintainFocus = false;
         
-        // Fallback focus attempt if the first one fails
         Future.delayed(const Duration(milliseconds: 50), () {
           if (mounted && !_focusNode.hasFocus) {
-            print('DEBUG MessageInput: Fallback focus restoration');
             _focusNode.requestFocus();
           }
         });
@@ -113,9 +90,7 @@ class _MessageInputState extends State<MessageInput> {
   void didUpdateWidget(MessageInput oldWidget) {
     super.didUpdateWidget(oldWidget);
     
-    // When parent finishes sending message, restore focus if needed
     if (oldWidget.isSendingMessage && !widget.isSendingMessage && _shouldMaintainFocus) {
-      print('DEBUG MessageInput: Parent finished sending, restoring focus');
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !_focusNode.hasFocus) {
           _focusNode.requestFocus();
