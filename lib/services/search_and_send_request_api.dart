@@ -76,7 +76,8 @@ class SearchAndFriendRequestApi {
         }),
       );
 
-      if (response.statusCode == 200) {
+      // Accept both 200 (OK) and 201 (Created) as success status codes
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final Map<String, dynamic> data = json.decode(response.body);
         return FriendRequestResponse.fromJson(data);
       } else {
