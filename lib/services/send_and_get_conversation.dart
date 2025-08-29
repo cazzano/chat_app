@@ -164,7 +164,7 @@ class ConversationApi {
         }),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final jsonData = jsonDecode(response.body);
         return SendMessageResponse.fromJson(jsonData);
       } else {
