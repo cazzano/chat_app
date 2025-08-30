@@ -58,7 +58,7 @@ class GetFriendsResponse {
 }
 
 class GetFriendsApi {
-  static const String baseUrl = 'http://localhost:2000';
+  static const String baseUrl = 'https://chatapp-production-4eb5.up.railway.app';
   static const String getFriendsEndpoint = '/auth/get_friends';
 
   static Future<String?> _getToken() async {

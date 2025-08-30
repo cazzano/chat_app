@@ -81,7 +81,7 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:2000/get_requests'),
+        Uri.parse('https://chatapp-production-4eb5.up.railway.app/get_requests'),
         headers: {
           'Authorization': 'Bearer $_authToken',
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:2000/auth/respond_friend_request'),
+        Uri.parse('https://chatapp-production-4eb5.up.railway.app/auth/respond_friend_request'),
         headers: {
           'Authorization': 'Bearer $_authToken',
           'Content-Type': 'application/json',

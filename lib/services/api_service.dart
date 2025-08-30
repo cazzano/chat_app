@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:2000';
+  static const String baseUrl = 'https://chatapp-production-4eb5.up.railway.app';
   static String? _cachedToken;
 
   static Future<String?> getToken() async {

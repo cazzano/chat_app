@@ -78,7 +78,7 @@ class _SignupBackendScreenState extends State<SignupBackendScreen>
 
       // Make API call to backend - server expects data in headers, not body
       final response = await http.post(
-        Uri.parse('http://localhost:2000/register'),
+        Uri.parse('https://chatapp-production-4eb5.up.railway.app/register'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

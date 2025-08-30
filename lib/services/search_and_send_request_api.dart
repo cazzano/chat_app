@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class SearchAndFriendRequestApi {
-  static const String baseUrl = 'http://localhost:2000';
+  static const String baseUrl = 'https://chatapp-production-4eb5.up.railway.app';
   static const String tokenPath = '~/.config/chat_app/token.json';
 
   // Get token from file

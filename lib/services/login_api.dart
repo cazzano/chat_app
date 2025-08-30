@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 
 class LoginApi {
-  static const String baseUrl = 'http://localhost:2000';
+  static const String baseUrl = 'https://chatapp-production-4eb5.up.railway.app';
   
   static Future<LoginResponse> login({
     required String username,
