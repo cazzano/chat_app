@@ -1,55 +1,99 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
-class ApiService {
+class LoginApi {
   static const String baseUrl = 'https://chatapp-production-4eb5.up.railway.app';
   static String? _cachedToken;
+
+  static Future<File> _getTokenFile() async {
+    if (Platform.isAndroid) {
+      // Android: Use app's internal files directory
+      final directory = await getApplicationDocumentsDirectory();
+      return File(path.join(directory.path, 'token.json'));
+    } else {
+      // Other platforms: Use existing logic (Linux, Windows, macOS)
+      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      if (home == null) {
+        throw Exception('Could not determine home directory');
+      }
+      
+      final configDir = Directory(path.join(home, '.config', 'chat_app'));
+      if (!await configDir.exists()) {
+        await configDir.create(recursive: true);
+      }
+      return File(path.join(configDir.path, 'token.json'));
+    }
+  }
 
   static Future<String?> getToken() async {
     if (_cachedToken != null) return _cachedToken;
 
     try {
-      // Get home directory path cross-platform
-      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (home != null) {
-        // Use path.join for cross-platform path construction
-        final configDir = path.join(home, '.config', 'chat_app');
-        final tokenPath = path.join(configDir, 'token.json');
-        final tokenFile = File(tokenPath);
-        
-        if (await tokenFile.exists()) {
-          final tokenContent = await tokenFile.readAsString();
-          final tokenJson = json.decode(tokenContent);
-          _cachedToken = tokenJson['token'];
-          return _cachedToken;
-        }
-      }
-
-      // Fallback to app documents directory
-      final directory = await getApplicationDocumentsDirectory();
-      final configDir = path.join(directory.parent.path, '.config', 'chat_app');
-      final tokenPath = path.join(configDir, 'token.json');
-      final tokenFile = File(tokenPath);
+      final tokenFile = await _getTokenFile();
       
       if (await tokenFile.exists()) {
-        final tokenContent = await tokenFile.readAsString();
-        final tokenJson = json.decode(tokenContent);
-        _cachedToken = tokenJson['token'];
+        final content = await tokenFile.readAsString();
+        final tokenData = jsonDecode(content);
+        _cachedToken = tokenData['token'];
         return _cachedToken;
       }
 
-      // Development fallback token
-      _cachedToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTAzIiwidXNlcm5hbWUiOiJyaWNvIiwiZXhwIjoxNzU2NDYxMTE1LCJpYXQiOjE3NTYzNzQ3MTUsImlzcyI6InlvdXItYXBwLW5hbWUifQ.bk-qaJjk36Tq_ntgGecqLFHL3aVC3CbPzp_h8wWgJEo";
-      return _cachedToken;
+      return null;
     } catch (e) {
       print('Error loading token: $e');
-      // Return development fallback token
-      _cachedToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiVTAzIiwidXNlcm5hbWUiOiJyaWNvIiwiZXhwIjoxNzU2NDYxMTE1LCJpYXQiOjE3NTYzNzQ3MTUsImlzcyI6InlvdXItYXBwLW5hbWUifQ.bk-qaJjk36Tq_ntgGecqLFHL3aVC3CbPzp_h8wWgJEo";
-      return _cachedToken;
+      return null;
     }
+  }
+
+  static Future<void> saveToken(String token) async {
+    try {
+      final tokenFile = await _getTokenFile();
+      
+      // Ensure parent directory exists
+      final parentDir = tokenFile.parent;
+      if (!await parentDir.exists()) {
+        await parentDir.create(recursive: true);
+      }
+
+      final tokenData = {
+        'token': token,
+        'saved_at': DateTime.now().toIso8601String(),
+      };
+
+      await tokenFile.writeAsString(json.encode(tokenData));
+      _cachedToken = token; // Update cache
+      print('Token saved to: ${tokenFile.path}');
+    } catch (e) {
+      print('Error saving token: $e');
+      throw Exception('Failed to save token: ${e.toString()}');
+    }
+  }
+
+  static Future<String?> getStoredToken() async {
+    return await getToken();
+  }
+
+  static Future<void> clearToken() async {
+    try {
+      final tokenFile = await _getTokenFile();
+
+      if (await tokenFile.exists()) {
+        await tokenFile.delete();
+        print('Token cleared from: ${tokenFile.path}');
+      }
+      
+      _cachedToken = null; // Clear cache
+    } catch (e) {
+      print('Error clearing token: $e');
+      // Ignore errors when clearing token
+    }
+  }
+
+  static void clearCachedToken() {
+    _cachedToken = null;
   }
 
   static Future<Map<String, String>> _getHeaders() async {
@@ -82,8 +126,43 @@ class ApiService {
       }),
     );
   }
+}
 
-  static void clearCachedToken() {
-    _cachedToken = null;
+class LoginResponse {
+  final String token;
+  final String tokenType;
+  final String userId;
+  final String username;
+  final String message;
+  final String expiresIn;
+
+  LoginResponse({
+    required this.token,
+    required this.tokenType,
+    required this.userId,
+    required this.username,
+    required this.message,
+    required this.expiresIn,
+  });
+
+  factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    return LoginResponse(
+      token: json['token'],
+      tokenType: json['token_type'],
+      userId: json['user_id'],
+      username: json['username'],
+      message: json['message'],
+      expiresIn: json['expires_in'],
+    );
   }
+}
+
+class LoginException implements Exception {
+  final String message;
+  final int statusCode;
+
+  LoginException(this.message, this.statusCode);
+
+  @override
+  String toString() => message;
 }

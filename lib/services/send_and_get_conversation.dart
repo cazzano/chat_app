@@ -118,26 +118,41 @@ class ConversationApi {
   // Get authentication token from file with cross-platform path support
   static Future<String?> _getToken() async {
     try {
-      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (homeDir == null) {
-        print('Could not determine home directory');
-        return null;
+      if (Platform.isAndroid) {
+        // Android: Use app's internal files directory
+        final directory = await getApplicationDocumentsDirectory();
+        final tokenFile = File(path.join(directory.path, 'token.json'));
+        
+        if (!await tokenFile.exists()) {
+          print('Token file does not exist at: ${tokenFile.path}');
+          return null;
+        }
+
+        final tokenContent = await tokenFile.readAsString();
+        final tokenData = jsonDecode(tokenContent);
+        return tokenData['token'];
+      } else {
+        // Other platforms: Use existing logic (Linux, Windows, macOS)
+        final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+        if (homeDir == null) {
+          print('Could not determine home directory');
+          return null;
+        }
+
+        final configDir = path.join(homeDir, '.config', 'chat_app');
+        final tokenPath = path.join(configDir, 'token.json');
+        final tokenFile = File(tokenPath);
+
+        if (!await tokenFile.exists()) {
+          print('Token file does not exist at: $tokenPath');
+          return null;
+        }
+
+        final tokenContent = await tokenFile.readAsString();
+        final tokenData = jsonDecode(tokenContent);
+        
+        return tokenData['token'];
       }
-
-      // Use path.join for cross-platform compatibility
-      final configDir = path.join(homeDir, '.config', 'chat_app');
-      final tokenPath = path.join(configDir, 'token.json');
-      final tokenFile = File(tokenPath);
-
-      if (!await tokenFile.exists()) {
-        print('Token file does not exist at: $tokenPath');
-        return null;
-      }
-
-      final tokenContent = await tokenFile.readAsString();
-      final tokenData = jsonDecode(tokenContent);
-      
-      return tokenData['token'];
     } catch (e) {
       print('Error reading token: $e');
       return null;

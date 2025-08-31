@@ -47,27 +47,48 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
     }
   }
 
+  Future<String?> _getToken() async {
+    try {
+      if (Platform.isAndroid) {
+        // Android: Use app's internal files directory
+        final directory = await getApplicationDocumentsDirectory();
+        final tokenFile = File(path.join(directory.path, 'token.json'));
+        
+        if (!await tokenFile.exists()) {
+          return null;
+        }
+
+        final content = await tokenFile.readAsString();
+        final tokenData = jsonDecode(content);
+        return tokenData['token'];
+      } else {
+        // Other platforms: Use existing logic (Linux, Windows, macOS)
+        final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+        if (homeDir == null) {
+          return null;
+        }
+
+        final configDir = path.join(homeDir, '.config', 'chat_app');
+        final tokenPath = path.join(configDir, 'token.json');
+        final file = File(tokenPath);
+        
+        if (await file.exists()) {
+          final content = await file.readAsString();
+          final tokenData = jsonDecode(content);
+          return tokenData['token'];
+        }
+        return null;
+      }
+    } catch (e) {
+      print('Error loading authentication token: $e');
+      return null;
+    }
+  }
+
   Future<void> _loadAuthToken() async {
     try {
-      // Get home directory cross-platform
-      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (homeDir == null) {
-        setState(() {
-          _error = 'Could not determine home directory';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Use path.join for cross-platform compatibility
-      final configDir = path.join(homeDir, '.config', 'chat_app');
-      final tokenPath = path.join(configDir, 'token.json');
-      final file = File(tokenPath);
-      
-      if (await file.exists()) {
-        final content = await file.readAsString();
-        final tokenData = jsonDecode(content);
-        _authToken = tokenData['token'];
+      _authToken = await _getToken();
+      if (_authToken != null) {
         await _loadFriendRequests();
       } else {
         setState(() {

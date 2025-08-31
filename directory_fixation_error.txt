@@ -1,0 +1,1 @@
+/data/data/[your-package-name]/files/token.json

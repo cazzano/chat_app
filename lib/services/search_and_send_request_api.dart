@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class SearchAndFriendRequestApi {
@@ -9,24 +10,38 @@ class SearchAndFriendRequestApi {
   // Get token from file with cross-platform path support
   static Future<String?> _getToken() async {
     try {
-      // Get home directory cross-platform
-      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (home == null) {
-        print('Could not determine home directory');
+      if (Platform.isAndroid) {
+        // Android: Use app's internal files directory
+        final directory = await getApplicationDocumentsDirectory();
+        final tokenFile = File(path.join(directory.path, 'token.json'));
+        
+        if (!await tokenFile.exists()) {
+          print('Token file does not exist at: ${tokenFile.path}');
+          return null;
+        }
+
+        final tokenContent = await tokenFile.readAsString();
+        final tokenData = jsonDecode(tokenContent);
+        return tokenData['token'];
+      } else {
+        // Other platforms: Use existing logic (Linux, Windows, macOS)
+        final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+        if (home == null) {
+          print('Could not determine home directory');
+          return null;
+        }
+        
+        final configDir = path.join(home, '.config', 'chat_app');
+        final tokenFilePath = path.join(configDir, 'token.json');
+        
+        final file = File(tokenFilePath);
+        if (await file.exists()) {
+          final String contents = await file.readAsString();
+          final Map<String, dynamic> tokenData = json.decode(contents);
+          return tokenData['token'];
+        }
         return null;
       }
-      
-      // Use path.join for cross-platform path construction
-      final configDir = path.join(home, '.config', 'chat_app');
-      final tokenFilePath = path.join(configDir, 'token.json');
-      
-      final file = File(tokenFilePath);
-      if (await file.exists()) {
-        final String contents = await file.readAsString();
-        final Map<String, dynamic> tokenData = json.decode(contents);
-        return tokenData['token'];
-      }
-      return null;
     } catch (e) {
       print('Error reading token: $e');
       return null;

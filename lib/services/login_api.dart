@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class LoginApi {
@@ -40,8 +41,14 @@ class LoginApi {
     }
   }
 
-  static Future<void> saveToken(String token) async {
-    try {
+  static Future<File> _getTokenFile() async {
+    if (Platform.isAndroid) {
+      // Android: Use app's internal files directory
+      final directory = await getApplicationDocumentsDirectory();
+      final tokenFile = File(path.join(directory.path, 'token.json'));
+      return tokenFile;
+    } else {
+      // Other platforms: Use existing logic (Linux, Windows, macOS)
       final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
       if (homeDir == null) throw Exception('Could not find home directory');
       
@@ -49,45 +56,60 @@ class LoginApi {
       if (!await configDir.exists()) {
         await configDir.create(recursive: true);
       }
+      return File(path.join(configDir.path, 'token.json'));
+    }
+  }
 
-      final tokenFile = File(path.join(configDir.path, 'token.json'));
+  static Future<void> saveToken(String token) async {
+    try {
+      final tokenFile = await _getTokenFile();
+      
+      // Ensure parent directory exists for Android
+      if (Platform.isAndroid) {
+        final parentDir = tokenFile.parent;
+        if (!await parentDir.exists()) {
+          await parentDir.create(recursive: true);
+        }
+      }
+
       final tokenData = {
         'token': token,
         'saved_at': DateTime.now().toIso8601String(),
       };
 
       await tokenFile.writeAsString(json.encode(tokenData));
+      print('Token saved to: ${tokenFile.path}');
     } catch (e) {
+      print('Error saving token: $e');
       throw Exception('Failed to save token: ${e.toString()}');
     }
   }
 
   static Future<String?> getStoredToken() async {
     try {
-      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (homeDir == null) return null;
+      final tokenFile = await _getTokenFile();
 
-      final tokenFile = File(path.join(homeDir, '.config', 'chat_app', 'token.json'));
       if (!await tokenFile.exists()) return null;
 
       final tokenContent = await tokenFile.readAsString();
       final tokenData = json.decode(tokenContent);
       return tokenData['token'];
     } catch (e) {
+      print('Error getting stored token: $e');
       return null;
     }
   }
 
   static Future<void> clearToken() async {
     try {
-      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (homeDir == null) return;
+      final tokenFile = await _getTokenFile();
 
-      final tokenFile = File(path.join(homeDir, '.config', 'chat_app', 'token.json'));
       if (await tokenFile.exists()) {
         await tokenFile.delete();
+        print('Token cleared from: ${tokenFile.path}');
       }
     } catch (e) {
+      print('Error clearing token: $e');
       // Ignore errors when clearing token
     }
   }
