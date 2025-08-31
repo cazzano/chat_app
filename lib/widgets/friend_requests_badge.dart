@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class FriendRequestsBadge extends StatefulWidget {
@@ -34,25 +35,48 @@ class FriendRequestsBadgeState extends State<FriendRequestsBadge> {
     await refreshBadge();
   }
 
+  Future<String?> _getToken() async {
+    try {
+      if (Platform.isAndroid) {
+        // Android: Use app's internal files directory
+        final directory = await getApplicationDocumentsDirectory();
+        final tokenFile = File(path.join(directory.path, 'token.json'));
+        
+        if (!await tokenFile.exists()) {
+          return null;
+        }
+
+        final content = await tokenFile.readAsString();
+        final tokenData = jsonDecode(content);
+        return tokenData['token'];
+      } else {
+        // Other platforms: Use existing logic (Linux, Windows, macOS)
+        final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+        if (homeDir == null) {
+          print('Could not determine home directory');
+          return null;
+        }
+
+        final configDir = path.join(homeDir, '.config', 'chat_app');
+        final tokenPath = path.join(configDir, 'token.json');
+        final file = File(tokenPath);
+        
+        if (await file.exists()) {
+          final content = await file.readAsString();
+          final tokenData = jsonDecode(content);
+          return tokenData['token'];
+        }
+        return null;
+      }
+    } catch (e) {
+      print('Error loading token for badge: $e');
+      return null;
+    }
+  }
+
   Future<void> _loadAuthToken() async {
     try {
-      // Get home directory cross-platform
-      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (homeDir == null) {
-        print('Could not determine home directory');
-        return;
-      }
-
-      // Use path.join for cross-platform path construction
-      final configDir = path.join(homeDir, '.config', 'chat_app');
-      final tokenPath = path.join(configDir, 'token.json');
-      final file = File(tokenPath);
-      
-      if (await file.exists()) {
-        final content = await file.readAsString();
-        final tokenData = jsonDecode(content);
-        _authToken = tokenData['token'];
-      }
+      _authToken = await _getToken();
     } catch (e) {
       // Handle error silently for badge
       print('Error loading token for badge: $e');
