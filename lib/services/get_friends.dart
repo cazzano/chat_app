@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class Friend {
   final String friendId;
@@ -63,15 +64,16 @@ class GetFriendsApi {
 
   static Future<String?> _getToken() async {
     try {
-      // Get the home directory path
+      // Get the home directory path cross-platform
       final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
       if (homeDir == null) {
         print('Could not determine home directory');
         return null;
       }
 
-      // Construct the path to the token file
-      final tokenPath = '$homeDir/.config/chat_app/token.json';
+      // Construct the path using path.join for cross-platform compatibility
+      final configDir = path.join(homeDir, '.config', 'chat_app');
+      final tokenPath = path.join(configDir, 'token.json');
       final tokenFile = File(tokenPath);
 
       if (!await tokenFile.exists()) {

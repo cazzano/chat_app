@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import '../models/message.dart';
 
 // Model for conversation message
@@ -113,7 +115,7 @@ class ConversationApi {
   static const String sendMessageEndpoint = '/auth/send_message';
   static const String conversationEndpoint = '/auth/conversation';
 
-  // Get authentication token from file
+  // Get authentication token from file with cross-platform path support
   static Future<String?> _getToken() async {
     try {
       final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
@@ -122,7 +124,9 @@ class ConversationApi {
         return null;
       }
 
-      final tokenPath = '$homeDir/.config/chat_app/token.json';
+      // Use path.join for cross-platform compatibility
+      final configDir = path.join(homeDir, '.config', 'chat_app');
+      final tokenPath = path.join(configDir, 'token.json');
       final tokenFile = File(tokenPath);
 
       if (!await tokenFile.exists()) {

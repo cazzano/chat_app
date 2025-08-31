@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class ApiService {
   static const String baseUrl = 'https://chatapp-production-4eb5.up.railway.app';
@@ -11,10 +12,12 @@ class ApiService {
     if (_cachedToken != null) return _cachedToken;
 
     try {
-      // Try to get from home directory config
+      // Get home directory path cross-platform
       final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
       if (home != null) {
-        final tokenPath = '$home/.config/chat_app/token.json';
+        // Use path.join for cross-platform path construction
+        final configDir = path.join(home, '.config', 'chat_app');
+        final tokenPath = path.join(configDir, 'token.json');
         final tokenFile = File(tokenPath);
         
         if (await tokenFile.exists()) {
@@ -27,7 +30,8 @@ class ApiService {
 
       // Fallback to app documents directory
       final directory = await getApplicationDocumentsDirectory();
-      final tokenPath = '${directory.parent.path}/.config/chat_app/token.json';
+      final configDir = path.join(directory.parent.path, '.config', 'chat_app');
+      final tokenPath = path.join(configDir, 'token.json');
       final tokenFile = File(tokenPath);
       
       if (await tokenFile.exists()) {

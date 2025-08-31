@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 
 class FriendRequestsBadge extends StatefulWidget {
   final Widget child;
@@ -35,8 +36,17 @@ class FriendRequestsBadgeState extends State<FriendRequestsBadge> {
 
   Future<void> _loadAuthToken() async {
     try {
-      final directory = Directory('${Platform.environment['HOME']}/.config/chat_app');
-      final file = File('${directory.path}/token.json');
+      // Get home directory cross-platform
+      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      if (homeDir == null) {
+        print('Could not determine home directory');
+        return;
+      }
+
+      // Use path.join for cross-platform path construction
+      final configDir = path.join(homeDir, '.config', 'chat_app');
+      final tokenPath = path.join(configDir, 'token.json');
+      final file = File(tokenPath);
       
       if (await file.exists()) {
         final content = await file.readAsString();

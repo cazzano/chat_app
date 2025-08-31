@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import '../models/friend_request.dart';
 import '../widgets/friend_request_tile.dart';
 
@@ -48,9 +49,20 @@ class _GetRequestsScreenState extends State<GetRequestsScreen> with TickerProvid
 
   Future<void> _loadAuthToken() async {
     try {
-      // Get the config directory path
-      final directory = Directory('${Platform.environment['HOME']}/.config/chat_app');
-      final file = File('${directory.path}/token.json');
+      // Get home directory cross-platform
+      final homeDir = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      if (homeDir == null) {
+        setState(() {
+          _error = 'Could not determine home directory';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Use path.join for cross-platform compatibility
+      final configDir = path.join(homeDir, '.config', 'chat_app');
+      final tokenPath = path.join(configDir, 'token.json');
+      final file = File(tokenPath);
       
       if (await file.exists()) {
         final content = await file.readAsString();

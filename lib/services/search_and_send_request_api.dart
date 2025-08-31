@@ -1,18 +1,24 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 
 class SearchAndFriendRequestApi {
   static const String baseUrl = 'https://chatapp-production-4eb5.up.railway.app';
-  static const String tokenPath = '~/.config/chat_app/token.json';
 
-  // Get token from file
+  // Get token from file with cross-platform path support
   static Future<String?> _getToken() async {
     try {
-      // For Android/iOS, we'll need to adjust this path or use shared preferences
-      // For now, assuming the token is stored in app's document directory
-      final String home = Platform.environment['HOME'] ?? '';
-      final String tokenFilePath = '$home/.config/chat_app/token.json';
+      // Get home directory cross-platform
+      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+      if (home == null) {
+        print('Could not determine home directory');
+        return null;
+      }
+      
+      // Use path.join for cross-platform path construction
+      final configDir = path.join(home, '.config', 'chat_app');
+      final tokenFilePath = path.join(configDir, 'token.json');
       
       final file = File(tokenFilePath);
       if (await file.exists()) {
