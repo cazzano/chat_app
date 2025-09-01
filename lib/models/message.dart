@@ -1,11 +1,20 @@
 import 'package:flutter/foundation.dart';
 
+enum MessageStatus {
+  pending,    // Message is being sent
+  sent,       // Message sent successfully (single tick)
+  delivered,  // Message delivered (double tick)
+  read,       // Message read (double blue tick)
+  failed,     // Message failed to send
+}
+
 class Message {
   final String id;
   final String text;
   final bool isSentByMe;
   final DateTime timestamp;
   final String? senderId; // For group chats
+  final MessageStatus status;
 
   Message({
     required this.id,
@@ -13,6 +22,7 @@ class Message {
     required this.isSentByMe,
     required this.timestamp,
     this.senderId,
+    this.status = MessageStatus.sent,
   });
 
   // Helper method to create a copy of the message with updated fields
@@ -22,6 +32,7 @@ class Message {
     bool? isSentByMe,
     DateTime? timestamp,
     String? senderId,
+    MessageStatus? status,
   }) {
     return Message(
       id: id ?? this.id,
@@ -29,6 +40,7 @@ class Message {
       isSentByMe: isSentByMe ?? this.isSentByMe,
       timestamp: timestamp ?? this.timestamp,
       senderId: senderId ?? this.senderId,
+      status: status ?? this.status,
     );
   }
 
@@ -40,7 +52,8 @@ class Message {
         other.text == text &&
         other.isSentByMe == isSentByMe &&
         other.timestamp == timestamp &&
-        other.senderId == senderId;
+        other.senderId == senderId &&
+        other.status == status;
   }
 
   @override
@@ -49,11 +62,12 @@ class Message {
         text.hashCode ^
         isSentByMe.hashCode ^
         timestamp.hashCode ^
-        (senderId?.hashCode ?? 0);
+        (senderId?.hashCode ?? 0) ^
+        status.hashCode;
   }
 
   @override
   String toString() {
-    return 'Message(id: $id, text: $text, isSentByMe: $isSentByMe, timestamp: $timestamp, senderId: $senderId)';
+    return 'Message(id: $id, text: $text, isSentByMe: $isSentByMe, timestamp: $timestamp, senderId: $senderId, status: $status)';
   }
 }

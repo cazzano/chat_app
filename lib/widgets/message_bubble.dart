@@ -13,13 +13,68 @@ class MessageBubble extends StatelessWidget {
     this.isGroupChat = false,
   }) : super(key: key);
 
+  Widget _buildStatusIcon(ThemeData theme) {
+    if (!message.isSentByMe) return const SizedBox.shrink();
+
+    switch (message.status) {
+      case MessageStatus.pending:
+        return SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(
+            strokeWidth: 1.5,
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        );
+      case MessageStatus.sent:
+        return Icon(
+          Icons.check,
+          size: 14,
+          color: theme.colorScheme.onSurface.withOpacity(0.6),
+        );
+      case MessageStatus.delivered:
+        return Icon(
+          Icons.done_all,
+          size: 14,
+          color: theme.colorScheme.onSurface.withOpacity(0.6),
+        );
+      case MessageStatus.read:
+        return Icon(
+          Icons.done_all,
+          size: 14,
+          color: Colors.blue,
+        );
+      case MessageStatus.failed:
+        return Icon(
+          Icons.error_outline,
+          size: 14,
+          color: Colors.red,
+        );
+    }
+  }
+
+  String _getStatusText() {
+    switch (message.status) {
+      case MessageStatus.pending:
+        return 'Sending...';
+      case MessageStatus.sent:
+        return _formatTime(message.timestamp);
+      case MessageStatus.delivered:
+        return _formatTime(message.timestamp);
+      case MessageStatus.read:
+        return _formatTime(message.timestamp);
+      case MessageStatus.failed:
+        return 'Failed to send';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isSentByMe = message.isSentByMe;
     
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       child: Column(
         crossAxisAlignment:
             isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -42,12 +97,12 @@ class MessageBubble extends StatelessWidget {
               Flexible(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+                    horizontal: 12,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: isSentByMe
-                        ? theme.colorScheme.primary.withOpacity(0.1)
+                        ? const Color(0xFFDCF8C6) // WhatsApp green for sent messages
                         : theme.colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
@@ -55,34 +110,44 @@ class MessageBubble extends StatelessWidget {
                       bottomLeft: Radius.circular(isSentByMe ? 16 : 4),
                       bottomRight: Radius.circular(isSentByMe ? 4 : 16),
                     ),
-                    border: Border.all(
-                      color: isSentByMe
-                          ? theme.colorScheme.primary.withOpacity(0.2)
-                          : theme.colorScheme.outline.withOpacity(0.2),
-                      width: 1,
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        message.text,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: isSentByMe
-                              ? theme.colorScheme.onSurface
-                              : theme.colorScheme.onSurfaceVariant,
+                      // Message text
+                      Container(
+                        width: double.infinity,
+                        child: Text(
+                          message.text,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatTime(message.timestamp),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: (isSentByMe
-                                      ? theme.colorScheme.onSurface
-                                      : theme.colorScheme.onSurfaceVariant)
-                                  .withOpacity(0.6),
-                          fontSize: 10,
-                        ),
+                      const SizedBox(height: 4),
+                      // Time and status row
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _getStatusText(),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              fontSize: 11,
+                            ),
+                          ),
+                          if (isSentByMe) ...[
+                            const SizedBox(width: 4),
+                            _buildStatusIcon(theme),
+                          ],
+                        ],
                       ),
                     ],
                   ),

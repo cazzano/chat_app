@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import '../models/conversation.dart';
 import '../models/message.dart';
 import '../widgets/message_bubble.dart';
@@ -24,10 +26,15 @@ class _ChatScreenState extends State<ChatScreen> {
   late String _userId;
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
+  final FocusNode _inputFocusNode = FocusNode();
   bool _showEmojiPicker = false;
   bool _isLoading = true;
-  bool _isSendingMessage = false;
   String? _errorMessage;
+
+  // Platform detection
+  bool get _isDesktop => defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.macOS;
 
   @override
   void initState() {
@@ -36,12 +43,23 @@ class _ChatScreenState extends State<ChatScreen> {
     _userId = widget.conversation.id;
     _messages = [];
     _loadConversation();
+
+    // Set up keyboard listener for desktop platforms
+    if (_isDesktop) {
+      _setupDesktopKeyboardListener();
+    }
+  }
+
+  void _setupDesktopKeyboardListener() {
+    // This will be handled by the TextField's onSubmitted for simplicity
+    // In a more complex implementation, you might use RawKeyboardListener
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     _messageController.dispose();
+    _inputFocusNode.dispose();
     super.dispose();
   }
 
@@ -111,47 +129,71 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _handleSubmitted(String text) async {
-    print('DEBUG ChatScreen: _handleSubmitted called - text: "$text", isSendingMessage: $_isSendingMessage');
+    print('DEBUG ChatScreen: _handleSubmitted called - text: "$text"');
     
-    if (text.trim().isEmpty || _isSendingMessage) {
-      print('DEBUG ChatScreen: Submit rejected - empty text or already sending');
+    if (text.trim().isEmpty) {
+      print('DEBUG ChatScreen: Submit rejected - empty text');
       return;
     }
 
-    print('DEBUG ChatScreen: Setting isSendingMessage to true');
+    final trimmedText = text.trim();
+    
+    // Create a temporary message with pending status (WhatsApp-like instant bubble)
+    final tempMessage = Message(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}', // Temporary ID
+      text: trimmedText,
+      isSentByMe: true,
+      timestamp: DateTime.now(),
+      status: MessageStatus.pending,
+    );
+
+    // Add the pending message immediately to the UI
     setState(() {
-      _isSendingMessage = true;
+      _messages.add(tempMessage);
     });
+
+    // Scroll to bottom immediately to show the new message
+    _scrollToBottomInstant();
 
     try {
       print('DEBUG ChatScreen: Calling API to send message');
       final sentMessage = await ConversationApi.sendMessageAndReturnMessage(
-        message: text.trim(),
+        message: trimmedText,
         recipientUserId: _userId,
       );
 
       if (sentMessage != null) {
-        print('DEBUG ChatScreen: Message sent successfully, adding to messages list');
+        print('DEBUG ChatScreen: Message sent successfully, updating status');
+        
+        // Replace the temporary message with the real one
         setState(() {
-          _messages.add(sentMessage);
-          _isSendingMessage = false; // Set to false BEFORE scheduling scroll
-        });
-
-        // Optimized scroll timing - reduced delay and smoother scroll
-        print('DEBUG ChatScreen: Scheduling optimized scroll to bottom');
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-            );
+          final tempIndex = _messages.indexWhere((msg) => msg.id == tempMessage.id);
+          if (tempIndex != -1) {
+            _messages[tempIndex] = sentMessage.copyWith(status: MessageStatus.sent);
           }
         });
+
+        // Simulate delivery status after a short delay (optional)
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            setState(() {
+              final msgIndex = _messages.indexWhere((msg) => msg.id == sentMessage.id);
+              if (msgIndex != -1) {
+                _messages[msgIndex] = _messages[msgIndex].copyWith(status: MessageStatus.delivered);
+              }
+            });
+          }
+        });
+
       } else {
         print('DEBUG ChatScreen: API returned null message');
+        
+        // Update the temporary message to failed status
         setState(() {
-          _isSendingMessage = false;
+          final tempIndex = _messages.indexWhere((msg) => msg.id == tempMessage.id);
+          if (tempIndex != -1) {
+            _messages[tempIndex] = tempMessage.copyWith(status: MessageStatus.failed);
+          }
         });
         
         if (mounted) {
@@ -165,8 +207,13 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     } catch (e) {
       print('DEBUG ChatScreen: Error sending message: $e');
+      
+      // Update the temporary message to failed status
       setState(() {
-        _isSendingMessage = false;
+        final tempIndex = _messages.indexWhere((msg) => msg.id == tempMessage.id);
+        if (tempIndex != -1) {
+          _messages[tempIndex] = tempMessage.copyWith(status: MessageStatus.failed);
+        }
       });
 
       if (mounted) {
@@ -185,8 +232,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onAttachmentPressed() {
-    if (_isSendingMessage) return;
-    
     // Show attachment options
     showModalBottomSheet(
       context: context,
@@ -233,8 +278,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _onEmojiPressed() {
-    if (_isSendingMessage) return;
-    
     setState(() {
       _showEmojiPicker = !_showEmojiPicker;
     });
@@ -380,8 +423,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: GestureDetector(
               onTap: () {
-                // Dismiss keyboard when tapping on messages
-                FocusScope.of(context).unfocus();
+                // Don't dismiss keyboard - keep focus on input (WhatsApp-like)
                 if (_showEmojiPicker) {
                   setState(() => _showEmojiPicker = false);
                 }
@@ -475,7 +517,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   itemBuilder: (context, index) {
                                     final message = _messages[index];
 
-                                    // Only auto-scroll on the last message and avoid doing it too frequently
+                                    // Auto-scroll on new messages
                                     if (index == _messages.length - 1) {
                                       WidgetsBinding.instance.addPostFrameCallback((_) {
                                         if (_scrollController.hasClients) {
@@ -495,12 +537,12 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-          // Message input with enhanced functionality
+          // Message input with WhatsApp-like behavior
           MessageInput(
             onSubmitted: _handleSubmitted,
             onAttachmentPressed: _onAttachmentPressed,
             onEmojiPressed: _onEmojiPressed,
-            isSendingMessage: _isSendingMessage,
+            isSendingMessage: false, // Remove global sending state
             scrollController: _scrollController,
           ),
           // Emoji picker (conditionally shown)
@@ -539,15 +581,6 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
         ],
       ),
-      // Floating action button for quick scroll to bottom
-      floatingActionButton: _messages.length > 10
-          ? FloatingActionButton(
-              onPressed: () => _scrollToBottomAfterDelay(0),
-              mini: true,
-              child: const Icon(Icons.keyboard_arrow_down),
-              tooltip: 'Scroll to bottom',
-            )
-          : null,
     );
   }
 

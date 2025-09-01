@@ -24,15 +24,12 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   bool _hasText = false;
-  bool _isSubmitting = false;
-  bool _needsFocusRestoration = false;
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onTextChanged);
     
-    // Debug: Monitor focus changes
     _focusNode.addListener(() {
       print('DEBUG MessageInput: Focus changed - hasFocus: ${_focusNode.hasFocus}');
     });
@@ -56,17 +53,12 @@ class _MessageInputState extends State<MessageInput> {
 
   Future<void> _handleSubmitted(String text) async {
     final trimmedText = text.trim();
-    print('DEBUG MessageInput: _handleSubmitted called - text: "$trimmedText", isSendingMessage: ${widget.isSendingMessage}, isSubmitting: $_isSubmitting');
+    print('DEBUG MessageInput: _handleSubmitted called - text: "$trimmedText"');
     
-    if (trimmedText.isNotEmpty && !widget.isSendingMessage && !_isSubmitting) {
-      setState(() {
-        _isSubmitting = true;
-        _needsFocusRestoration = true; // Set flag for focus restoration
-      });
-      
+    if (trimmedText.isNotEmpty) {
       print('DEBUG MessageInput: About to call onSubmitted callback');
       
-      // Clear the text first
+      // Clear the text immediately
       _controller.clear();
       setState(() {
         _hasText = false;
@@ -75,32 +67,9 @@ class _MessageInputState extends State<MessageInput> {
       // Call the parent's submit handler
       widget.onSubmitted(trimmedText);
       
-      print('DEBUG MessageInput: Called onSubmitted, waiting for parent to finish');
-      
-      setState(() {
-        _isSubmitting = false;
-      });
+      print('DEBUG MessageInput: Called onSubmitted');
     } else {
-      print('DEBUG MessageInput: Submit rejected - trimmedText.isEmpty: ${trimmedText.isEmpty}, isSendingMessage: ${widget.isSendingMessage}, isSubmitting: $_isSubmitting');
-    }
-  }
-
-  @override
-  void didUpdateWidget(MessageInput oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    
-    // When parent finishes sending message AND we need focus restoration
-    if (oldWidget.isSendingMessage && !widget.isSendingMessage && _needsFocusRestoration) {
-      print('DEBUG MessageInput: Parent finished sending, restoring focus');
-      
-      // Use a longer delay to ensure the parent has completely finished its work
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted && _needsFocusRestoration) {
-          print('DEBUG MessageInput: Executing delayed focus restoration');
-          _focusNode.requestFocus();
-          _needsFocusRestoration = false;
-        }
-      });
+      print('DEBUG MessageInput: Submit rejected - empty text');
     }
   }
 
@@ -137,13 +106,13 @@ class _MessageInputState extends State<MessageInput> {
             // Attachment button
             IconButton(
               icon: const Icon(Icons.attach_file_rounded),
-              onPressed: widget.isSendingMessage ? null : widget.onAttachmentPressed,
+              onPressed: widget.onAttachmentPressed,
               color: theme.colorScheme.primary,
             ),
             // Emoji button
             IconButton(
               icon: const Icon(Icons.emoji_emotions_outlined),
-              onPressed: widget.isSendingMessage ? null : widget.onEmojiPressed,
+              onPressed: widget.onEmojiPressed,
               color: theme.colorScheme.primary,
             ),
             // Text input field
@@ -173,8 +142,10 @@ class _MessageInputState extends State<MessageInput> {
                         maxLines: 5,
                         minLines: 1,
                         textInputAction: TextInputAction.send,
+                        // Use onSubmitted for Enter key on all platforms
                         onSubmitted: _handleSubmitted,
-                        enabled: !widget.isSendingMessage,
+                        keyboardType: TextInputType.multiline,
+                        textCapitalization: TextCapitalization.sentences,
                         onTap: () {
                           // Auto-scroll to bottom when focusing on input
                           Future.delayed(const Duration(milliseconds: 300), () {
@@ -187,27 +158,28 @@ class _MessageInputState extends State<MessageInput> {
                 ),
               ),
             ),
-            // Send button
-            IconButton(
-              icon: widget.isSendingMessage
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: theme.colorScheme.primary,
-                      ),
-                    )
-                  : Icon(
-                      _hasText ? Icons.send_rounded : Icons.mic_rounded,
-                      color: _hasText && !widget.isSendingMessage
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.primary.withOpacity(0.5),
-                    ),
-              onPressed: _hasText && !widget.isSendingMessage
-                  ? () => _handleSubmitted(_controller.text)
-                  : null,
-            ),
+            // Send button (show when text is present)
+            if (_hasText)
+              IconButton(
+                icon: Icon(
+                  Icons.send_rounded,
+                  color: theme.colorScheme.primary,
+                ),
+                onPressed: () => _handleSubmitted(_controller.text),
+              )
+            // Mic button (when no text)
+            else
+              IconButton(
+                icon: Icon(
+                  Icons.mic_rounded,
+                  color: theme.colorScheme.primary.withOpacity(0.5),
+                ),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Voice message coming soon!')),
+                  );
+                },
+              ),
           ],
         ),
       ),
