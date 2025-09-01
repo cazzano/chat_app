@@ -125,7 +125,7 @@ type OS = 'windows' | 'linux' | 'android' | 'other';
 const downloads = [
     { os: 'windows' as OS, name: "Windows x64", icon: WindowsIcon, file: "retribution_os_win_x64.zip" },
     { os: 'android' as OS, name: "Android 16", icon: Smartphone, file: "retribution_os_android.apk" },
-    { os: 'linux' as OS, name: "Linux (Arch)", icon: Terminal, file: "retribution_os_linux.tar.gz" }
+    { os: 'linux' as OS, name: "Linux Arch", icon: Terminal, file: "retribution_os_linux.tar.gz" }
 ];
 
 const DownloadSection = () => {
