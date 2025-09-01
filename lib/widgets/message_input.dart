@@ -24,20 +24,37 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   bool _hasText = false;
+  bool _shouldMaintainFocus = true; // Flag to control persistent focus
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onTextChanged);
     
+    // Auto-focus on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+    
     _focusNode.addListener(() {
       print('DEBUG MessageInput: Focus changed - hasFocus: ${_focusNode.hasFocus}');
+      
+      // Always regain focus if lost and we should maintain focus
+      if (!_focusNode.hasFocus && mounted && _shouldMaintainFocus) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted && !_focusNode.hasFocus && _shouldMaintainFocus) {
+            print('DEBUG MessageInput: Restoring focus automatically');
+            _focusNode.requestFocus();
+          }
+        });
+      }
     });
   }
 
   @override
   void dispose() {
     print('DEBUG MessageInput: Disposing MessageInput');
+    _shouldMaintainFocus = false; // Stop focus restoration during disposal
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();
@@ -66,6 +83,13 @@ class _MessageInputState extends State<MessageInput> {
       
       // Call the parent's submit handler
       widget.onSubmitted(trimmedText);
+      
+      // Ensure focus stays on input after submission
+      Future.delayed(const Duration(milliseconds: 50), () {
+        if (mounted) {
+          _focusNode.requestFocus();
+        }
+      });
       
       print('DEBUG MessageInput: Called onSubmitted');
     } else {

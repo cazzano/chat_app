@@ -423,10 +423,17 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: GestureDetector(
               onTap: () {
-                // Don't dismiss keyboard - keep focus on input (WhatsApp-like)
+                // Don't dismiss focus - keep input focused
                 if (_showEmojiPicker) {
                   setState(() => _showEmojiPicker = false);
                 }
+                // Maintain focus on input field
+                Future.delayed(const Duration(milliseconds: 50), () {
+                  if (mounted) {
+                    // Get the MessageInput's focus node through a key or keep local reference
+                    // For now, we'll handle this in MessageInput itself
+                  }
+                });
               },
               child: Container(
                 decoration: BoxDecoration(

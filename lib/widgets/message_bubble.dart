@@ -23,31 +23,31 @@ class MessageBubble extends StatelessWidget {
           height: 12,
           child: CircularProgressIndicator(
             strokeWidth: 1.5,
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+            color: Colors.black54,
           ),
         );
       case MessageStatus.sent:
         return Icon(
           Icons.check,
-          size: 14,
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
+          size: 16,
+          color: Colors.black54,
         );
       case MessageStatus.delivered:
         return Icon(
           Icons.done_all,
-          size: 14,
-          color: theme.colorScheme.onSurface.withOpacity(0.6),
+          size: 16,
+          color: Colors.black54,
         );
       case MessageStatus.read:
         return Icon(
           Icons.done_all,
-          size: 14,
-          color: Colors.blue,
+          size: 16,
+          color: const Color(0xFF4FC3F7), // WhatsApp blue
         );
       case MessageStatus.failed:
         return Icon(
           Icons.error_outline,
-          size: 14,
+          size: 16,
           color: Colors.red,
         );
     }
@@ -75,48 +75,62 @@ class MessageBubble extends StatelessWidget {
     
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Column(
-        crossAxisAlignment:
-            isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (showSenderName && isGroupChat && !isSentByMe)
-            Padding(
-              padding: const EdgeInsets.only(left: 8.0, bottom: 2),
-              child: Text(
-                message.senderId ?? 'Unknown',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.textTheme.bodySmall?.color,
-                ),
-              ),
-            ),
-          Row(
-            mainAxisAlignment:
-                isSentByMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-            children: [
-              if (!isSentByMe && isGroupChat) const SizedBox(width: 8),
-              Flexible(
-                child: Container(
+          // Add spacing from left edge for sent messages
+          if (isSentByMe) const Flexible(flex: 1, child: SizedBox()),
+          
+          // Message bubble
+          Flexible(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: isSentByMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                if (showSenderName && isGroupChat && !isSentByMe)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8.0, bottom: 2),
+                    child: Text(
+                      message.senderId ?? 'Unknown',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 8,
                   ),
+                  margin: EdgeInsets.only(
+                    left: isSentByMe ? 0 : 0,
+                    right: isSentByMe ? 0 : 0,
+                  ),
                   decoration: BoxDecoration(
                     color: isSentByMe
                         ? const Color(0xFFDCF8C6) // WhatsApp green for sent messages
-                        : theme.colorScheme.surfaceVariant,
+                        : Colors.white, // White for received messages
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isSentByMe ? 16 : 4),
-                      bottomRight: Radius.circular(isSentByMe ? 4 : 16),
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(isSentByMe ? 18 : 5),
+                      bottomRight: Radius.circular(isSentByMe ? 5 : 18),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 2,
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 1,
                         offset: const Offset(0, 1),
                       ),
                     ],
+                    border: isSentByMe 
+                        ? null 
+                        : Border.all(
+                            color: Colors.grey.withOpacity(0.2),
+                            width: 0.5,
+                          ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -127,11 +141,12 @@ class MessageBubble extends StatelessWidget {
                         child: Text(
                           message.text,
                           style: theme.textTheme.bodyLarge?.copyWith(
-                            color: theme.colorScheme.onSurface,
+                            color: Colors.black87,
+                            fontSize: 16,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 2),
                       // Time and status row
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -139,8 +154,8 @@ class MessageBubble extends StatelessWidget {
                           Text(
                             _getStatusText(),
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              fontSize: 11,
+                              color: Colors.black54,
+                              fontSize: 12,
                             ),
                           ),
                           if (isSentByMe) ...[
@@ -152,9 +167,12 @@ class MessageBubble extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          
+          // Add spacing from right edge for received messages
+          if (!isSentByMe) const Flexible(flex: 1, child: SizedBox()),
         ],
       ),
     );
