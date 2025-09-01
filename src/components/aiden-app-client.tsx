@@ -50,8 +50,8 @@ const BootLoader: FC<{ onFinished: () => void }> = ({ onFinished }) => {
 const Header = () => (
   <header className="fixed top-0 left-0 right-0 z-50 p-4 bg-background/50 backdrop-blur-sm">
     <div className="container mx-auto flex justify-between items-center">
-      <h1 className="font-headline text-xl md:text-2xl text-primary glitch-hover group" data-text="Aiden's App Store">
-        Aiden's App Store
+      <h1 className="font-headline text-xl md:text-2xl text-primary glitch-hover group" data-text="Cazzano's Chat App Store">
+        Cazzano's Chat App Store
       </h1>
       <div className="text-primary font-code text-xs md:text-sm">
         <span className="text-muted-foreground">// status:</span> online
@@ -123,9 +123,9 @@ const FeaturesSection = () => (
 
 type OS = 'windows' | 'linux' | 'android' | 'other';
 const downloads = [
-    { os: 'windows' as OS, name: "Windows x64", icon: WindowsIcon, file: "retribution_os_win_x64.zip" },
-    { os: 'android' as OS, name: "Android 16", icon: Smartphone, file: "retribution_os_android.apk" },
-    { os: 'linux' as OS, name: "Linux Arch", icon: Terminal, file: "retribution_os_linux.tar.gz" }
+    { os: 'windows' as OS, name: "Windows x64", icon: WindowsIcon, url: "https://1024terabox.com/s/1tzcvE4DSWK23GYNFjf8ZBw" },
+    { os: 'android' as OS, name: "Android (All)", icon: Smartphone, url: "https://1024terabox.com/s/1iG8SDaU3GqPB5X8y36qqQQ" },
+    { os: 'linux' as OS, name: "Linux (Arch)", icon: Terminal, url: "https://1024terabox.com/s/1IwYpnhHO7CotXUGaRAaw2w" }
 ];
 
 const DownloadSection = () => {
@@ -156,7 +156,7 @@ const DownloadSection = () => {
                                 <dl.icon className="w-16 h-16 mb-4 text-primary group-hover:text-secondary transition-colors" />
                                 <h4 className="font-headline text-2xl text-secondary mb-2">{dl.name}</h4>
                                 <Button asChild className={cn("mt-4 w-full glitch-button", isRecommended && "bg-accent text-accent-foreground hover:bg-accent/90 pulse-glow")} data-text="Download">
-                                    <a href={`/downloads/${dl.file}`} download>Download</a>
+                                    <a href={dl.url} target="_blank" rel="noopener noreferrer">Download</a>
                                 </Button>
                                 {isRecommended && <p className="text-accent text-xs mt-2 font-code">// Recommended</p>}
                             </Card>
@@ -179,7 +179,7 @@ const SystemRequirementsSection = () => (
                 <div><span className="text-primary mr-2">CPU:</span> <span className="text-white">Dual Core 2.0GHz+</span></div>
                 <div><span className="text-primary mr-2">RAM:</span> <span className="text-white">4GB Minimum</span></div>
                 <div><span className="text-primary mr-2">OS:</span> <span className="text-white">Windows 10+, Linux (Kernel 5+), Android 8+</span></div>
-                <div><span className="text-primary mr-2">DISK:</span> <span className="text-white">70MB Free Space</span></div>
+                <div><span className="text-primary mr-2">DISK:</span> <span className="text-white">250MB Free Space</span></div>
                 <div><span className="text-primary mr-2">NETWORK:</span> <span className="text-white">Broadband Internet Connection</span></div>
                 <div><span className="text-primary mr-2">PERMISSIONS:</span> <span className="text-green-400">ROOT ACCESS NOT REQUIRED</span></div>
             </div>
@@ -196,8 +196,8 @@ const ContactSection = () => (
         <ScrollFadeIn delay={200}>
             <Card className="bg-card/70 border-primary/20 font-code text-muted-foreground p-8 text-center">
                 <p className="text-lg">For support or inquiries, establish a secure connection:</p>
-                <a href="cuprousoh@gmail.com" className="text-accent text-2xl glitch-button mt-4 inline-block" data-text="support@retribution.os">
-                    cuprousoh@gmail.com
+                <a href="mailto:support@retribution.os" className="text-accent text-2xl glitch-button mt-4 inline-block" data-text="support@retribution.os">
+                    support@retribution.os
                 </a>
                 <p className="mt-6 text-primary/50 text-sm">// All communications are monitored and encrypted.</p>
             </Card>
