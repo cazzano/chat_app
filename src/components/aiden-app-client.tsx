@@ -123,9 +123,9 @@ const FeaturesSection = () => (
 
 type OS = 'windows' | 'linux' | 'android' | 'other';
 const downloads = [
-    { os: 'windows' as OS, name: "Windows 10/11 x64", icon: WindowsIcon, url: "https://1024terabox.com/s/1tzcvE4DSWK23GYNFjf8ZBw" },
-    { os: 'android' as OS, name: "Android 8-16", icon: Smartphone, url: "https://1024terabox.com/s/1iG8SDaU3GqPB5X8y36qqQQ" },
-    { os: 'linux' as OS, name: "Linux Arch", icon: Terminal, url: "https://1024terabox.com/s/1IwYpnhHO7CotXUGaRAaw2w" }
+    { os: 'windows' as OS, name: "Windows 10/11 x64", icon: WindowsIcon, url: "https://1024terabox.com/s/1BoP4j3-yVraS3T4Y3XgX5w" },
+    { os: 'android' as OS, name: "Android 8-16", icon: Smartphone, url: "https://1024terabox.com/s/1USXmYBOkJOseGljxQDHezQ" },
+    { os: 'linux' as OS, name: "Linux Arch", icon: Terminal, url: "https://1024terabox.com/s/1svhnJA06ujX-F_EeZEUScA" }
 ];
 
 const DownloadSection = () => {
@@ -179,7 +179,7 @@ const SystemRequirementsSection = () => (
                 <div><span className="text-primary mr-2">CPU:</span> <span className="text-white">Dual Core 2.0GHz+</span></div>
                 <div><span className="text-primary mr-2">RAM:</span> <span className="text-white">4GB Minimum</span></div>
                 <div><span className="text-primary mr-2">OS:</span> <span className="text-white">Windows 10+, Linux (Kernel 5+), Android 8+</span></div>
-                <div><span className="text-primary mr-2">DISK:</span> <span className="text-white">70MB Free Space</span></div>
+                <div><span className="text-primary mr-2">DISK:</span> <span className="text-white">100MB Free Space</span></div>
                 <div><span className="text-primary mr-2">NETWORK:</span> <span className="text-white">Broadband Internet Connection</span></div>
                 <div><span className="text-primary mr-2">PERMISSIONS:</span> <span className="text-green-400">ROOT ACCESS NOT REQUIRED</span></div>
             </div>
