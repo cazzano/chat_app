@@ -88,7 +88,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       return;
     }
 
-    // Signup flow
+    // Signup flow - directly navigate to 2FA setup
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 800));
     setState(() => _isLoading = false);
@@ -134,57 +134,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   void _handleSignup() {
     if (!_formKey.currentState!.validate()) return;
-    _showSetup2FADialog();
-  }
-
-  void _showSetup2FADialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.security,
-                color: Theme.of(context).primaryColor,
-              ),
-              const SizedBox(width: 12),
-              const Text('Secure Your Account'),
-            ],
-          ),
-          content: const Text(
-            'To keep your account safe, we recommend setting up two-factor authentication. This adds an extra layer of security.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _navigateToChat(); // Skip 2FA setup
-              },
-              child: const Text('Skip for now'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _navigateTo2FASetup(); // Set up 2FA
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Set up 2FA'),
-            ),
-          ],
-        );
-      },
-    );
+    // Directly navigate to 2FA setup without showing dialog
+    _navigateTo2FASetup();
   }
 
   void _navigateTo2FASetup() {
@@ -296,7 +247,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                 ? 'Enter your 6-digit TOTP code from your authenticator app'
                                 : _isLoginMode 
                                     ? 'Sign in to continue chatting'
-                                    : 'Join our secure chat community',
+                                    : 'Join our secure chat community with 2FA protection',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: Colors.grey[600],
                             ),
@@ -495,7 +446,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                           ? 'Login'
                                           : _isLoginMode 
                                               ? 'Continue' 
-                                              : 'Sign Up',
+                                              : 'Create Account & Setup 2FA',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

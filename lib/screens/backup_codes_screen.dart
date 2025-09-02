@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
-import 'chat_list_screen.dart';
+import 'auth_screen.dart';
 
 class BackupCodesScreen extends StatefulWidget {
   final String username;
@@ -16,6 +16,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
   late List<String> _backupCodes;
   late AnimationController _controller;
   bool _codesVisible = true;
+  bool _isCompleting = false;
   
   @override
   void initState() {
@@ -52,12 +53,29 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
 
   void _toggleVisibility() => setState(() => _codesVisible = !_codesVisible);
 
-  void _completeSetup() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const ChatListScreen()),
-      (route) => false,
+  void _completeSetup() async {
+    setState(() => _isCompleting = true);
+    
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('2FA setup completed successfully! Please login with your new account.'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 3),
+      ),
     );
+
+    // Add a small delay to show the loading state
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Navigate back to login screen
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -75,6 +93,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
         title: const Text('Backup Codes'),
         centerTitle: true,
         elevation: 0,
+        automaticallyImplyLeading: false, // Remove back button since this is part of signup flow
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -132,7 +151,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
         ),
         const SizedBox(height: 8),
         Text(
-          'Store these codes safely. Each can only be used once.',
+          'Store these codes safely. Each can only be used once if you lose access to your authenticator.',
           style: theme.textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
           textAlign: TextAlign.center,
         ),
@@ -151,7 +170,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Keep these codes private. Anyone with access can enter your account.',
+                'Keep these codes private and secure. Anyone with access can enter your account.',
                 style: TextStyle(color: Colors.orange[700]),
               ),
             ),
@@ -178,10 +197,12 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
                     IconButton(
                       icon: Icon(_codesVisible ? Icons.visibility_off : Icons.visibility),
                       onPressed: _toggleVisibility,
+                      tooltip: _codesVisible ? 'Hide codes' : 'Show codes',
                     ),
                     IconButton(
                       icon: const Icon(Icons.copy_all),
                       onPressed: _copyAllCodes,
+                      tooltip: 'Copy all codes',
                     ),
                   ],
                 ),
@@ -232,7 +253,7 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _completeSetup,
+        onPressed: _isCompleting ? null : _completeSetup,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -240,7 +261,23 @@ class _BackupCodesScreenState extends State<BackupCodesScreen> with SingleTicker
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text('Complete Setup'),
+        child: _isCompleting
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Text(
+                'Complete Setup & Go to Login',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
       ),
     );
   }
