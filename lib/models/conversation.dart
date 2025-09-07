@@ -1,4 +1,5 @@
-// conversation.dart
+// conversation
+
 import 'package:flutter/foundation.dart';
 import 'message.dart';
 

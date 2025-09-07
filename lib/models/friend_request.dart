@@ -1,4 +1,4 @@
-// friend_request.dart
+// friend_request
 
 class FriendRequest {
   final int requestId;

@@ -1,4 +1,4 @@
-// main.dart
+// main
 
 import 'package:flutter/material.dart';
 import 'screens/auth_screen.dart';

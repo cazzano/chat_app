@@ -1,4 +1,4 @@
-// auth_screen.dart
+// auth_screen
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
