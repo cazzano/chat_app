@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Age decryption script for funky extensions
+# Age decryption script for funky encrypted files
 # Usage: ./decrypter.sh -p private_key.txt folder_name
 
-# Array of funky extensions to recognize (same as encryption script)
+# Array of funky extensions to recognize
 FUNKY_EXTENSIONS=(
     "booom_boom_baby.exeeee"
     "hacker_mode.activated"
@@ -27,22 +27,32 @@ FUNKY_EXTENSIONS=(
     "crypto_beast.monster"
 )
 
+# Function to check if file has a funky extension
+is_funky_extension() {
+    local filename="$1"
+    for ext in "${FUNKY_EXTENSIONS[@]}"; do
+        if [[ "$filename" == "$ext" ]]; then
+            return 0  # True, it's a funky extension
+        fi
+    done
+    return 1  # False, not a funky extension
+}
+
+# Function to show usage
+show_usage() {
+    echo "Usage: $0 -p <private_key_file> <folder_name>"
+    echo "Example: $0 -p key.txt lib"
+    echo ""
+    echo "Options:"
+    echo "  -p <file>    Private key file for decryption"
+    echo "  <folder>     Folder containing encrypted files"
+}
+
 # Check if age is installed
 if ! command -v age &> /dev/null; then
     echo "❌ Error: 'age' is not installed. Install it with: sudo pacman -S age"
     exit 1
 fi
-
-# Function to show usage
-show_usage() {
-    echo "❌ Usage: $0 -p <private_key_file> <folder_name>"
-    echo "Example: $0 -p key.txt lib"
-    echo ""
-    echo "Options:"
-    echo "  -p <private_key_file>  Path to your private key file"
-    echo "  <folder_name>          Folder containing encrypted files"
-    exit 1
-}
 
 # Parse command line arguments
 PRIVATE_KEY=""
@@ -54,25 +64,33 @@ while [[ $# -gt 0 ]]; do
             PRIVATE_KEY="$2"
             shift 2
             ;;
-        -*)
-            echo "❌ Unknown option: $1"
+        -h|--help)
             show_usage
+            exit 0
+            ;;
+        -*)
+            echo "❌ Error: Unknown option $1"
+            show_usage
+            exit 1
             ;;
         *)
             if [ -z "$FOLDER" ]; then
                 FOLDER="$1"
             else
-                echo "❌ Too many arguments"
+                echo "❌ Error: Too many arguments"
                 show_usage
+                exit 1
             fi
             shift
             ;;
     esac
 done
 
-# Check if both private key and folder are provided
+# Check if required arguments are provided
 if [ -z "$PRIVATE_KEY" ] || [ -z "$FOLDER" ]; then
+    echo "❌ Error: Missing required arguments"
     show_usage
+    exit 1
 fi
 
 # Check if private key file exists
@@ -87,53 +105,33 @@ if [ ! -d "$FOLDER" ]; then
     exit 1
 fi
 
-# Function to check if filename has a funky extension
-is_funky_extension() {
-    local filename="$1"
-    for ext in "${FUNKY_EXTENSIONS[@]}"; do
-        if [[ "$filename" == *"$ext" ]]; then
-            echo "$ext"
-            return 0
-        fi
-    done
-    return 1
-}
-
 # Function to decrypt a single file
 decrypt_file() {
     local encrypted_file="$1"
     local dir_path=$(dirname "$encrypted_file")
     local filename=$(basename "$encrypted_file")
     
-    # Get the funky extension
-    local funky_ext=$(is_funky_extension "$filename")
-    if [ $? -ne 0 ]; then
-        return 1
-    fi
-    
-    # Remove the funky extension to get original name
-    local original_name="${filename%"$funky_ext"}"
-    
-    # If original name is empty, use "decrypted" as base name
-    if [ -z "$original_name" ]; then
-        original_name="decrypted"
-    fi
-    
-    # Remove any trailing dots if they exist
-    original_name="${original_name%.}"
-    
-    local decrypted_file="$dir_path/$original_name"
-    
     echo "🔓 Decrypting: $encrypted_file"
-    echo "   → $decrypted_file"
     
-    if age -d -i "$PRIVATE_KEY" -o "$decrypted_file" "$encrypted_file" 2>/dev/null; then
+    # Just remove the funky extension - no intelligence, just chop it off
+    local base_name=""
+    if [[ "$filename" == *"."* ]]; then
+        # Remove everything after the last dot
+        base_name=$(echo "$filename" | sed 's/\.[^.]*$//')
+    else
+        base_name="$filename"
+    fi
+    
+    # Final decrypted file path - just the base name, no added extensions
+    local decrypted_file="$dir_path/$base_name"
+    
+    if age -d -i "$PRIVATE_KEY" "$encrypted_file" > "$decrypted_file" 2>/dev/null; then
+        echo "   → $decrypted_file"
         echo "   ✅ Success!"
-        # Optionally remove encrypted file (uncomment next line if you want this)
-        # rm "$encrypted_file"
         return 0
     else
         echo "   ❌ Failed to decrypt $encrypted_file"
+        rm -f "$decrypted_file"  # Clean up failed attempt
         return 1
     fi
 }
@@ -141,18 +139,16 @@ decrypt_file() {
 # Counter for statistics
 decrypted_count=0
 failed_count=0
-funky_files_found=0
 
-echo "🚀 Starting decryption of funky files in '$FOLDER'"
+echo "🚀 Starting decryption of funky encrypted files in '$FOLDER'"
 echo "🔑 Using private key: $PRIVATE_KEY"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Find all files with funky extensions and decrypt them
 while IFS= read -r -d '' file; do
     if [ -f "$file" ]; then
         filename=$(basename "$file")
-        if is_funky_extension "$filename" > /dev/null; then
-            ((funky_files_found++))
+        if is_funky_extension "$filename"; then
             if decrypt_file "$file"; then
                 ((decrypted_count++))
             else
@@ -163,17 +159,11 @@ while IFS= read -r -d '' file; do
     fi
 done < <(find "$FOLDER" -type f -print0)
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📊 Decryption Summary:"
-echo "   🔍 Funky files found: $funky_files_found"
 echo "   ✅ Successfully decrypted: $decrypted_count files"
 echo "   ❌ Failed: $failed_count files"
+echo "   📁 Funky extensions removed, files restored in original directories"
 echo ""
-if [ $decrypted_count -gt 0 ]; then
-    echo "🎉 Decryption completed! Your files are back to their original names (minus the funky extensions)."
-else
-    echo "🤔 No files were decrypted. Make sure:"
-    echo "   - The folder contains files with funky extensions"
-    echo "   - The private key is correct"
-    echo "   - The files were encrypted with the matching public key"
-fi
+echo "🎉 Decryption complete!"
+echo "💡 crypto_beast.monster → crypto_beast (no extra extensions added)"

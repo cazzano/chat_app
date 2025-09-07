@@ -1,0 +1,701 @@
+// chat_screen.dart
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import '../models/conversation.dart';
+import '../models/message.dart';
+import '../widgets/message_bubble.dart';
+import '../widgets/message_input.dart';
+import '../services/send_and_get_conversation.dart';
+import '../services/get_friends.dart';
+
+class ChatScreen extends StatefulWidget {
+  final Conversation conversation;
+
+  const ChatScreen({
+    Key? key,
+    required this.conversation,
+  }) : super(key: key);
+
+  @override
+  _ChatScreenState createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  late List<Message> _messages;
+  late String _contactName;
+  late String _userId;
+  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
+  final FocusNode _inputFocusNode = FocusNode();
+  bool _showEmojiPicker = false;
+  bool _isLoading = true;
+  String? _errorMessage;
+  bool _shouldScrollToBottom = true; // Flag to control auto-scrolling
+
+  // Platform detection
+  bool get _isDesktop => defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux ||
+      defaultTargetPlatform == TargetPlatform.macOS;
+
+  @override
+  void initState() {
+    super.initState();
+    _contactName = widget.conversation.contactName;
+    _userId = widget.conversation.id;
+    _messages = [];
+    _loadConversation();
+
+    // Set up keyboard listener for desktop platforms
+    if (_isDesktop) {
+      _setupDesktopKeyboardListener();
+    }
+
+    // Add scroll listener to detect manual scrolling
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    // If user manually scrolls up, disable auto-scroll
+    if (_scrollController.hasClients) {
+      final isAtBottom = _scrollController.offset >= 
+          _scrollController.position.maxScrollExtent - 100; // 100px threshold
+      
+      if (!isAtBottom && _shouldScrollToBottom) {
+        setState(() {
+          _shouldScrollToBottom = false;
+        });
+      } else if (isAtBottom && !_shouldScrollToBottom) {
+        setState(() {
+          _shouldScrollToBottom = true;
+        });
+      }
+    }
+  }
+
+  void _setupDesktopKeyboardListener() {
+    // This will be handled by the TextField's onSubmitted for simplicity
+    // In a more complex implementation, you might use RawKeyboardListener
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _messageController.dispose();
+    _inputFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadConversation() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final messages = await ConversationApi.getConversationMessages(_userId);
+      
+      setState(() {
+        _messages = messages;
+        _isLoading = false;
+        _shouldScrollToBottom = true; // Always scroll to bottom after loading
+      });
+
+      // Ensure scroll to bottom after loading messages
+      _scrollToBottomAfterBuild();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Failed to load conversation: ${e.toString()}';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load messages: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _loadConversation,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _scrollToBottomAfterBuild() {
+    // Use multiple frame callbacks to ensure proper scrolling
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottomInstant();
+      
+      // Add a second callback for extra safety
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients && _shouldScrollToBottom) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    });
+  }
+
+  void _scrollToBottomAfterDelay([int delayMs = 100]) {
+    print('DEBUG ChatScreen: _scrollToBottomAfterDelay called with delay: ${delayMs}ms');
+    Future.delayed(Duration(milliseconds: delayMs), () {
+      if (_scrollController.hasClients && _shouldScrollToBottom) {
+        print('DEBUG ChatScreen: Scrolling to bottom - maxScrollExtent: ${_scrollController.position.maxScrollExtent}');
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } else {
+        print('DEBUG ChatScreen: ScrollController has no clients or auto-scroll disabled');
+      }
+    });
+  }
+
+  void _scrollToBottomInstant() {
+    print('DEBUG ChatScreen: _scrollToBottomInstant called');
+    if (_scrollController.hasClients && _shouldScrollToBottom) {
+      print('DEBUG ChatScreen: Instant scroll to bottom - maxScrollExtent: ${_scrollController.position.maxScrollExtent}');
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    } else {
+      print('DEBUG ChatScreen: ScrollController has no clients for instant scroll or auto-scroll disabled');
+    }
+  }
+
+  void _forceScrollToBottom() {
+    print('DEBUG ChatScreen: Force scroll to bottom requested');
+    setState(() {
+      _shouldScrollToBottom = true;
+    });
+    
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  Future<void> _handleSubmitted(String text) async {
+    print('DEBUG ChatScreen: _handleSubmitted called - text: "$text"');
+    
+    if (text.trim().isEmpty) {
+      print('DEBUG ChatScreen: Submit rejected - empty text');
+      return;
+    }
+
+    final trimmedText = text.trim();
+    
+    // Ensure we're scrolling to bottom for new messages
+    setState(() {
+      _shouldScrollToBottom = true;
+    });
+    
+    // Create a temporary message with pending status (WhatsApp-like instant bubble)
+    final tempMessage = Message(
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}', // Temporary ID
+      text: trimmedText,
+      isSentByMe: true,
+      timestamp: DateTime.now(),
+      status: MessageStatus.pending,
+    );
+
+    // Add the pending message immediately to the UI
+    setState(() {
+      _messages.add(tempMessage);
+    });
+
+    // Scroll to bottom immediately to show the new message
+    _scrollToBottomAfterBuild();
+
+    try {
+      print('DEBUG ChatScreen: Calling API to send message');
+      final sentMessage = await ConversationApi.sendMessageAndReturnMessage(
+        message: trimmedText,
+        recipientUserId: _userId,
+      );
+
+      if (sentMessage != null) {
+        print('DEBUG ChatScreen: Message sent successfully, updating status');
+        
+        // Replace the temporary message with the real one
+        setState(() {
+          final tempIndex = _messages.indexWhere((msg) => msg.id == tempMessage.id);
+          if (tempIndex != -1) {
+            _messages[tempIndex] = sentMessage.copyWith(status: MessageStatus.sent);
+          }
+        });
+
+        // Ensure we stay at bottom after updating message
+        _scrollToBottomAfterBuild();
+
+        // Simulate delivery status after a short delay (optional)
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) {
+            setState(() {
+              final msgIndex = _messages.indexWhere((msg) => msg.id == sentMessage.id);
+              if (msgIndex != -1) {
+                _messages[msgIndex] = _messages[msgIndex].copyWith(status: MessageStatus.delivered);
+              }
+            });
+          }
+        });
+
+      } else {
+        print('DEBUG ChatScreen: API returned null message');
+        
+        // Update the temporary message to failed status
+        setState(() {
+          final tempIndex = _messages.indexWhere((msg) => msg.id == tempMessage.id);
+          if (tempIndex != -1) {
+            _messages[tempIndex] = tempMessage.copyWith(status: MessageStatus.failed);
+          }
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to send message'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('DEBUG ChatScreen: Error sending message: $e');
+      
+      // Update the temporary message to failed status
+      setState(() {
+        final tempIndex = _messages.indexWhere((msg) => msg.id == tempMessage.id);
+        if (tempIndex != -1) {
+          _messages[tempIndex] = tempMessage.copyWith(status: MessageStatus.failed);
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending message: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _refreshConversation() async {
+    setState(() {
+      _shouldScrollToBottom = true; // Enable auto-scroll on refresh
+    });
+    await _loadConversation();
+  }
+
+  void _onAttachmentPressed() {
+    // Show attachment options
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Photo Library'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Photo sharing coming soon!')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Camera feature coming soon!')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.insert_drive_file),
+                title: const Text('Document'),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Document sharing coming soon!')),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _onEmojiPressed() {
+    setState(() {
+      _showEmojiPicker = !_showEmojiPicker;
+    });
+  }
+
+  Widget _buildScrollToBottomFab() {
+    return Positioned(
+      bottom: 80, // Position above the input field
+      right: 16,
+      child: AnimatedOpacity(
+        opacity: _shouldScrollToBottom ? 0.0 : 1.0,
+        duration: const Duration(milliseconds: 300),
+        child: FloatingActionButton(
+          mini: true,
+          onPressed: _forceScrollToBottom,
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          child: Icon(
+            Icons.keyboard_arrow_down,
+            color: Theme.of(context).colorScheme.onPrimaryContainer,
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isGroupChat = false;
+
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: theme.primaryColor.withOpacity(0.2),
+              backgroundImage: widget.conversation.avatarUrl != null
+                  ? NetworkImage(widget.conversation.avatarUrl!)
+                  : null,
+              child: widget.conversation.avatarUrl == null
+                  ? Text(
+                      _contactName[0].toUpperCase(),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _contactName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'User ID: $_userId',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.textTheme.labelSmall?.color?.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _isLoading ? null : _refreshConversation,
+            tooltip: 'Refresh Messages',
+          ),
+          IconButton(
+            icon: const Icon(Icons.phone),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Voice call coming soon!')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.videocam),
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Video call coming soon!')),
+              );
+            },
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'refresh':
+                  _refreshConversation();
+                  break;
+                case 'clear_chat':
+                  _showClearChatDialog();
+                  break;
+                case 'view_contact':
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Contact info coming soon!')),
+                  );
+                  break;
+                case 'scroll_bottom':
+                  _forceScrollToBottom();
+                  break;
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'scroll_bottom',
+                child: Row(
+                  children: [
+                    Icon(Icons.keyboard_arrow_down),
+                    SizedBox(width: 8),
+                    Text('Scroll to bottom'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'view_contact',
+                child: Row(
+                  children: [
+                    Icon(Icons.person),
+                    SizedBox(width: 8),
+                    Text('View contact'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'clear_chat',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all),
+                    SizedBox(width: 8),
+                    Text('Clear chat (local)'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              // Messages list
+              Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    // Don't dismiss focus - keep input focused
+                    if (_showEmojiPicker) {
+                      setState(() => _showEmojiPicker = false);
+                    }
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                    ),
+                    child: _isLoading
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text('Loading messages...'),
+                              ],
+                            ),
+                          )
+                        : _errorMessage != null
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.error_outline,
+                                      size: 64,
+                                      color: theme.colorScheme.error,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Error Loading Messages',
+                                      style: theme.textTheme.titleLarge?.copyWith(
+                                        color: theme.colorScheme.error,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                                      child: Text(
+                                        _errorMessage!,
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton.icon(
+                                      onPressed: _loadConversation,
+                                      icon: const Icon(Icons.refresh),
+                                      label: const Text('Retry'),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : _messages.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.chat_bubble_outline,
+                                          size: 80,
+                                          color: theme.hintColor.withOpacity(0.5),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'No messages yet',
+                                          style: theme.textTheme.titleLarge?.copyWith(
+                                            color: theme.hintColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Send your first message to $_contactName',
+                                          style: theme.textTheme.bodyMedium?.copyWith(
+                                            color: theme.hintColor,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : RefreshIndicator(
+                                    onRefresh: _refreshConversation,
+                                    child: ListView.builder(
+                                      controller: _scrollController,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+                                      itemCount: _messages.length,
+                                      itemBuilder: (context, index) {
+                                        final message = _messages[index];
+
+                                        return MessageBubble(
+                                          message: message,
+                                          showSenderName: false,
+                                          isGroupChat: isGroupChat,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                  ),
+                ),
+              ),
+              // Message input with WhatsApp-like behavior
+              MessageInput(
+                onSubmitted: _handleSubmitted,
+                onAttachmentPressed: _onAttachmentPressed,
+                onEmojiPressed: _onEmojiPressed,
+                isSendingMessage: false, // Remove global sending state
+                scrollController: _scrollController,
+              ),
+              // Emoji picker (conditionally shown)
+              if (_showEmojiPicker)
+                SizedBox(
+                  height: 250,
+                  child: Container(
+                    color: theme.colorScheme.surfaceVariant,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.emoji_emotions_outlined,
+                            size: 48,
+                            color: theme.colorScheme.primary.withOpacity(0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Emoji Picker',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Coming Soon!',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Floating scroll to bottom button
+          _buildScrollToBottomFab(),
+        ],
+      ),
+    );
+  }
+
+  void _showClearChatDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Chat'),
+          content: const Text(
+            'This will clear the chat messages from your local view only. '
+            'The messages will still exist on the server.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _messages.clear();
+                  _shouldScrollToBottom = true; // Reset scroll behavior
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Chat cleared locally')),
+                );
+              },
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
