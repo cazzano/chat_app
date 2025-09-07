@@ -1,4 +1,4 @@
-// backup_codes_screen.dart
+// backup_codes_screen
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

@@ -1,4 +1,4 @@
-// chat_screen.dart
+// chat_screen
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

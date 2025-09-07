@@ -1,4 +1,4 @@
-// search_and_send_friend_request_api
+// search_and_send_request_api
 
 import 'dart:convert';
 import 'dart:io';
