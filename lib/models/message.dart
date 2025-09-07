@@ -1,3 +1,5 @@
+// message.dart
+
 import 'package:flutter/foundation.dart';
 
 enum MessageStatus {

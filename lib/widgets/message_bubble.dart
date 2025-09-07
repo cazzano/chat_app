@@ -1,3 +1,5 @@
+// message_bubble
+
 import 'package:flutter/material.dart';
 import '../models/message.dart';
 

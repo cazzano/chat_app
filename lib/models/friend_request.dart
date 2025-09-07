@@ -1,3 +1,5 @@
+// friend_request.dart
+
 class FriendRequest {
   final int requestId;
   final String senderUserId;
