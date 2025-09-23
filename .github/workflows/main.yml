@@ -9,8 +9,8 @@ on:
   workflow_dispatch:  # Only manual triggering from GitHub Actions menu
 
 env:
-  RELEASE_TAG: "vr-1.0"  # ← Change this tag version here
-  RELEASE_DESCRIPTION: "thrilled to show case project."  # ← Change description here
+  RELEASE_TAG: "vr-2.0"  # ← Change this tag version here
+  RELEASE_DESCRIPTION: "The new experiment haah!!!"  # ← Change description here
 
 jobs:
   build-android:
