@@ -1,5 +1,10 @@
 # Put this file in .github/workflows/ on your main branch
 name: Build and Release Flutter Apps
+
+permissions:
+  contents: write  # Allows creating releases and pushing tags
+  actions: read
+
 on: 
   workflow_dispatch:  # Only manual triggering from GitHub Actions menu
 
@@ -117,11 +122,16 @@ jobs:
         with:
           ref: main
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Fetch full history for tagging
 
       - name: Create and push tag
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          # Delete tag if it exists (for re-runs)
+          git tag -d "vr-1.0" 2>/dev/null || true
+          git push origin --delete "vr-1.0" 2>/dev/null || true
+          # Create new tag
           git tag -a "vr-1.0" -m "thrilled to show case project."
           git push origin "vr-1.0"
 
