@@ -8,6 +8,10 @@ permissions:
 on: 
   workflow_dispatch:  # Only manual triggering from GitHub Actions menu
 
+env:
+  RELEASE_TAG: "vr-1.0"  # ← Change this tag version here
+  RELEASE_DESCRIPTION: "thrilled to show case project."  # ← Change description here
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
@@ -124,16 +128,28 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0  # Fetch full history for tagging
 
+      - name: Check if release exists and delete if same tag
+        run: |
+          # Check if release with same tag exists
+          RELEASE_ID=$(gh release view "${{ env.RELEASE_TAG }}" --json id --jq .id 2>/dev/null || echo "")
+          if [ ! -z "$RELEASE_ID" ]; then
+            echo "Release with tag ${{ env.RELEASE_TAG }} exists. Deleting it..."
+            gh release delete "${{ env.RELEASE_TAG }}" --yes
+          fi
+          
+          # Delete tag if it exists
+          git tag -d "${{ env.RELEASE_TAG }}" 2>/dev/null || true
+          git push origin --delete "${{ env.RELEASE_TAG }}" 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create and push tag
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          # Delete tag if it exists (for re-runs)
-          git tag -d "vr-1.0" 2>/dev/null || true
-          git push origin --delete "vr-1.0" 2>/dev/null || true
-          # Create new tag
-          git tag -a "vr-1.0" -m "thrilled to show case project."
-          git push origin "vr-1.0"
+          # Create new tag with defined version
+          git tag -a "${{ env.RELEASE_TAG }}" -m "${{ env.RELEASE_DESCRIPTION }}"
+          git push origin "${{ env.RELEASE_TAG }}"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -144,9 +160,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "vr-1.0"
-          release_name: "Release vr-1.0"
-          body: "thrilled to show case project."
+          tag_name: "${{ github.event.inputs.tag_name }}"
+          release_name: "Release ${{ github.event.inputs.tag_name }}"
+          body: "${{ github.event.inputs.release_description }}"
           draft: false
           prerelease: false
 
@@ -157,7 +173,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./android-apk/app-release.apk
-          asset_name: chat-application-android.apk
+          asset_name: chat-application-android-${{ github.event.inputs.tag_name }}.apk
           asset_content_type: application/vnd.android.package-archive
 
       - name: Upload Linux Build
@@ -167,7 +183,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./linux-build/linux-release.tar.gz
-          asset_name: chat-application-linux.tar.gz
+          asset_name: chat-application-linux-${{ github.event.inputs.tag_name }}.tar.gz
           asset_content_type: application/gzip
 
       - name: Upload Windows Build
@@ -177,5 +193,5 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./windows-build/windows-release.zip
-          asset_name: chat-application-windows.zip
+          asset_name: chat-application-windows-${{ github.event.inputs.tag_name }}.zip
           asset_content_type: application/zip
