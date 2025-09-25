@@ -1,22 +1,16 @@
 name: Build and Deploy Next.js to GitHub Pages
 
+# Workflow will only run when manually triggered
 on:
-  # Only allows manual trigger from Actions tab
   workflow_dispatch:
-    inputs:
-      deploy_message:
-        description: 'Deployment message (optional)'
-        required: false
-        default: 'Manual deployment triggered'
-        type: string
 
-# Sets permissions for GitHub Pages deployment
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -26,86 +20,45 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    # Step 1: Show deployment info
-    - name: Show deployment info
-      run: |
-        echo "🚀 Starting manual deployment..."
-        echo "📝 Message: ${{ github.event.inputs.deploy_message }}"
-        echo "👤 Triggered by: ${{ github.actor }}"
-        echo "🌿 Building from branch: gui_next_tauri"
-    
-    # Step 2: Checkout the gui_next_tauri branch (where Next.js code is)
-    - name: Checkout gui_next_tauri branch
-      uses: actions/checkout@v4
-      with:
-        ref: gui_next_tauri
-        fetch-depth: 0
-    
-    # Step 3: Setup Node.js
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    # Step 4: Install dependencies
-    - name: Install dependencies
-      run: npm ci
-    
-    # Step 5: Build Next.js project
-    - name: Build Next.js project
-      run: |
-        echo "🔨 Building Next.js project..."
-        npm run build
-        npm run export
-        echo "✅ Build completed successfully!"
-      env:
-        # Required for static export
-        NEXT_PUBLIC_BASE_PATH: ${{ github.event.repository.name }}
-    
-    # Step 6: Verify build output
-    - name: Verify build output
-      run: |
-        echo "📁 Checking build output..."
-        ls -la ./out/
-        echo "📊 Build size:"
-        du -sh ./out/
-    
-    # Step 7: Add .nojekyll file (prevents GitHub Pages from processing files starting with _)
-    - name: Add .nojekyll file
-      run: touch ./out/.nojekyll
-    
-    # Step 8: Setup GitHub Pages
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-    
-    # Step 9: Upload build artifacts
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: './out'
-    
-    # Step 10: Deploy to GitHub Pages
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
-
-  # Notify on completion
-  notify:
-    needs: build-and-deploy
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-    - name: Notify deployment status
-      run: |
-        if [ "${{ needs.build-and-deploy.result }}" == "success" ]; then
-          echo "✅ Deployment successful!"
-          echo "🌐 Site URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
-          echo "📝 Message: ${{ github.event.inputs.deploy_message }}"
-          echo "⏰ Deployed at: $(date)"
-        else
-          echo "❌ Deployment failed!"
-          echo "📝 Message: ${{ github.event.inputs.deploy_message }}"
-          echo "🔍 Check the logs above for error details"
-        fi
+      # Checkout the gui_next_tauri branch instead of main
+      - name: Checkout gui_next_tauri branch
+        uses: actions/checkout@v4
+        with:
+          ref: gui_next_tauri
+          
+      # Setup Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      # Install dependencies
+      - name: Install dependencies
+        run: npm ci
+        
+      # Build the Next.js project
+      - name: Build Next.js project
+        run: npm run build
+        env:
+          # This is important for GitHub Pages deployment
+          NEXT_PUBLIC_BASE_PATH: /${{ github.repository }}
+          
+      # Setup GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        with:
+          # Automatically configure the base path for GitHub Pages
+          static_site_generator: next
+          
+      # Upload the build artifacts (out folder)
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload the out folder created by Next.js build
+          path: ./out
+          
+      # Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
