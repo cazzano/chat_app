@@ -123,9 +123,9 @@ const FeaturesSection = () => (
 
 type OS = 'windows' | 'linux' | 'android' | 'other';
 const downloads = [
-    { os: 'windows' as OS, name: "Windows 10/11 x64", icon: WindowsIcon, url: "https://1024terabox.com/s/1BoP4j3-yVraS3T4Y3XgX5w" },
-    { os: 'android' as OS, name: "Android 8-16", icon: Smartphone, url: "https://1024terabox.com/s/1USXmYBOkJOseGljxQDHezQ" },
-    { os: 'linux' as OS, name: "Linux Arch", icon: Terminal, url: "https://1024terabox.com/s/1NnmzaT_Hhstm3v2gFL3oyA" }
+    { os: 'windows' as OS, name: "Windows 10/11 x64", icon: WindowsIcon, url: "https://github.com/cazzano/chat_app/releases/download/vr-2.0/windows-release.zip" },
+    { os: 'android' as OS, name: "Android 8-16", icon: Smartphone, url: "https://github.com/cazzano/chat_app/releases/download/vr-2.0/app-release.apk" },
+    { os: 'linux' as OS, name: "Linux Arch", icon: Terminal, url: "https://github.com/cazzano/chat_app/releases/download/vr-2.0/linux-release.tar.gz" }
 ];
 
 const DownloadSection = () => {
