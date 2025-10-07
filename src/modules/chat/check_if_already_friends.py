@@ -1,3 +1,5 @@
+# check_if_already_friends
+
 from flask import Flask, request, jsonify, Blueprint
 import sqlite3
 import requests
